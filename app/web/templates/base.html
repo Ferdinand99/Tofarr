@@ -23,6 +23,7 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 .side{width:220px;flex:none;background:var(--side);color:var(--side-fg);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .brand{padding:18px 20px;font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;border-bottom:1px solid #ffffff14}
 .brand small{display:block;font-size:11px;font-weight:400;color:var(--side-fg);margin-top:2px}
+.ver{margin-top:auto;padding:12px 20px;font-size:12px;opacity:.65}
 .nav{padding:10px 0;display:flex;flex-direction:column}
 .nav a{padding:10px 20px;color:var(--side-fg);border-left:3px solid transparent}
 .nav a:hover{background:#ffffff0d;text-decoration:none;color:#fff}
@@ -103,6 +104,7 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 @media(max-width:760px){
   body{flex-direction:column}
   .side{width:100%;height:auto;position:static;flex-direction:row;align-items:center;overflow-x:auto}
+  .ver{display:none}
   .brand{border:0;padding:12px 16px;white-space:nowrap}.brand small{display:none}
   .nav{flex-direction:row;padding:0}
   .nav a{border-left:0;border-bottom:3px solid transparent;white-space:nowrap}
@@ -121,6 +123,7 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
     <a href="/new" class="{{ 'on' if request.url.path == '/new' }}">Add new</a>
     <a href="/settings" class="{{ 'on' if request.url.path == '/settings' }}">Settings</a>
   </nav>
+  <div class="ver">Version <span>{{ app_version() }}</span></div>
 </aside>
 <div class="main">
   <header class="bar"><h1>{% block heading %}Collections{% endblock %}</h1>{% block toolbar %}{% endblock %}</header>

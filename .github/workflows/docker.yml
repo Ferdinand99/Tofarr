@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -18,9 +18,9 @@ jobs:
   publish:
     needs: test
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
-      contents: read
+      contents: write   # creates the GitHub release for a version tag
       packages: write
     steps:
       - uses: actions/checkout@v4
@@ -29,15 +29,30 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # A version tag (v1.2.3) publishes 1.2.3, 1.2 and latest. Pushes to main publish edge only,
+      # so :latest, which the Unraid template uses, always means the newest release.
       - uses: docker/metadata-action@v5
         id: meta
         with:
           images: ghcr.io/ferdinand99/tofarr
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=edge,branch=main
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: VERSION=${{ steps.meta.outputs.version }}
+      - name: GitHub release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          # A release made by hand in the GitHub UI is left alone; this only fills in a missing one.
+          gh release view "$TAG" >/dev/null 2>&1 && exit 0
+          flags=""
+          case "$TAG" in *-*) flags="--prerelease" ;; esac
+          gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag $flags

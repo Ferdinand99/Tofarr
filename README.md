@@ -44,6 +44,18 @@ The Discover page lists Tofa shelves and TMDB, Trakt and IMDb charts. Titles you
 ## Unraid
 Add `https://github.com/Ferdinand99/unraid-templates` under Docker > Template repositories, or copy `unraid/tofarr.xml` into that repo's `templates/`.
 
+## Releases
+Versions are git tags. To publish one:
+
+```
+git tag v0.1.1
+git push origin v0.1.1
+```
+
+GitHub then builds the images `0.1.1`, `0.1` and `latest`, and creates a release with generated notes.
+Pushes to `main` publish `edge` only. The Unraid template uses `latest`, so Unraid updates only to releases.
+The running version is shown at the bottom of the sidebar.
+
 ## Develop
 ```
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt

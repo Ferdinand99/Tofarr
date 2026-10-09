@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 from urllib.parse import quote, urlsplit
@@ -25,6 +26,7 @@ def poster_src(p: str) -> str:
 
 
 TEMPLATES.env.globals["poster_src"] = poster_src
+TEMPLATES.env.globals["app_version"] = lambda: os.environ.get("APP_VERSION", "dev")
 
 def _cfg_from_form(f: dict) -> dict:
     t = f["source_type"]
