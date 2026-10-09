@@ -25,6 +25,9 @@
     <textarea id="dp" name="discover_params" rows="4">{{ v.discover_params or '' }}</textarea>
     <div class="hint">One <code>key=value</code> per line, for example <code>with_people=1136406</code>.</div></div>
   <div class="field" data-for="tmdb_discover"><label for="mp">Max pages</label><input id="mp" name="max_pages" value="{{ v.max_pages or 3 }}"></div>
+  <div class="field" data-for="imdb_list"><label for="il">IMDb list</label>
+    <input id="il" name="imdb_list" value="{{ v.imdb_list or '' }}" placeholder="https://www.imdb.com/list/ls029032797/">
+    <div class="hint">URL or id of a public IMDb list. Needs a TMDB API key. Uses IMDb's unofficial list API, so it can stop working.</div></div>
   <div class="field" data-for="trakt_list"><label for="tu">Trakt user</label><input id="tu" name="trakt_user" value="{{ v.trakt_user or '' }}"></div>
   <div class="field" data-for="trakt_list"><label for="ts">Trakt list slug</label><input id="ts" name="trakt_slug" value="{{ v.trakt_slug or '' }}"></div>
 

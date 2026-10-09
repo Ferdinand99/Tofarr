@@ -24,6 +24,8 @@ def _cfg_from_form(f: dict) -> dict:
                 params[k.strip()] = v.strip()
         return {"media_type": f.get("discover_media_type", "movie"), "params": params,
                 "max_pages": int(f.get("max_pages") or 3)}
+    if t == "imdb_list":
+        return {"list": f.get("imdb_list", "").strip()}
     if t == "trakt_list":
         return {"user": f.get("trakt_user", "").strip(), "slug": f.get("trakt_slug", "").strip()}
     raise SourceError(f"Unknown source type: {t}")
@@ -35,7 +37,7 @@ def _values_from_def(d: dict) -> dict:
             "discover_media_type": c.get("media_type", "movie"),
             "discover_params": "\n".join(f"{k}={v}" for k, v in c.get("params", {}).items()),
             "max_pages": c.get("max_pages", 3), "trakt_user": c.get("user", ""),
-            "trakt_slug": c.get("slug", ""), "interval_minutes": d["interval_minutes"],
+            "trakt_slug": c.get("slug", ""), "imdb_list": c.get("list", ""), "interval_minutes": d["interval_minutes"],
             "prune": d["prune"], "enabled": d["enabled"]}
 
 def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -> FastAPI:
