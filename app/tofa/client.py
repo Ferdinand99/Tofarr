@@ -49,9 +49,16 @@ class TofaClient:
             chunk = items[i:i + self.BATCH]
             body = {"items": [{"tmdb_id": t, "media_type": m} for t, m in chunk]}
             data = self._ok(self._req("POST", "/media/by-tmdb/batch", json=body)).json()
+            asked: dict[int, list[str]] = {}
+            for t, m in chunk:
+                asked.setdefault(t, []).append(m)
             for res in data["results"]:
-                if res.get("media_id") and res.get("files"):
-                    out[(res["tmdb_id"], res["media_type"])] = res["media_id"]
+                if not (res.get("media_id") and res.get("files")):
+                    continue
+                types = asked.get(res["tmdb_id"], [])
+                # trust our own requested type when unambiguous; Tofa may echo another label
+                mt = types[0] if len(types) == 1 else res["media_type"]
+                out[(res["tmdb_id"], mt)] = res["media_id"]
         return out
 
     def create_collection(self, name: str, overview: str | None) -> str:

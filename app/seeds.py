@@ -1,4 +1,5 @@
-MCU_TIMELINE = """\
+# First seed (films only, up to Endgame). Kept so an untouched copy can be upgraded.
+MCU_TIMELINE_V1 = """\
 1771   # Captain America: The First Avenger
 299537 # Captain Marvel
 1726   # Iron Man
@@ -23,9 +24,80 @@ MCU_TIMELINE = """\
 299534 # Avengers: Endgame
 """
 
+# Full MCU (films + Disney+ series) in in-universe order. "tv" marks a series.
+# Ids checked against Wikidata's TMDB id properties. Tofa has no reorder API,
+# so the order here is only the order items are added in.
+MCU_TIMELINE = """\
+1771   # Captain America: The First Avenger
+299537 # Captain Marvel
+1726   # Iron Man
+10138  # Iron Man 2
+1724   # The Incredible Hulk
+10195  # Thor
+24428  # The Avengers
+76338  # Thor: The Dark World
+68721  # Iron Man 3
+100402 # Captain America: The Winter Soldier
+118340 # Guardians of the Galaxy
+283995 # Guardians of the Galaxy Vol. 2
+99861  # Avengers: Age of Ultron
+102899 # Ant-Man
+271110 # Captain America: Civil War
+497698 # Black Widow
+284054 # Black Panther
+315635 # Spider-Man: Homecoming
+284052 # Doctor Strange
+284053 # Thor: Ragnarok
+363088 # Ant-Man and the Wasp
+299536 # Avengers: Infinity War
+299534 # Avengers: Endgame
+91363 tv  # What If...?
+84958 tv  # Loki
+85271 tv  # WandaVision
+88396 tv  # The Falcon and the Winter Soldier
+566525 # Shang-Chi and the Legend of the Ten Rings
+524434 # Eternals
+429617 # Spider-Man: Far From Home
+634649 # Spider-Man: No Way Home
+88329 tv  # Hawkeye
+92749 tv  # Moon Knight
+453395 # Doctor Strange in the Multiverse of Madness
+92782 tv  # Ms. Marvel
+616037 # Thor: Love and Thunder
+232125 tv # I Am Groot
+92783 tv  # She-Hulk: Attorney at Law
+505642 # Black Panther: Wakanda Forever
+894205 # Werewolf by Night
+774752 # The Guardians of the Galaxy Holiday Special
+640146 # Ant-Man and the Wasp: Quantumania
+447365 # Guardians of the Galaxy Vol. 3
+114472 tv # Secret Invasion
+609681 # The Marvels
+122226 tv # Echo
+533535 # Deadpool & Wolverine
+138501 tv # Agatha All Along
+822119 # Captain America: Brave New World
+202555 tv # Daredevil: Born Again
+114471 tv # Ironheart
+986056 # Thunderbolts*
+241388 tv # Eyes of Wakanda
+138503 tv # Your Friendly Neighborhood Spider-Man
+617126 # The Fantastic Four: First Steps
+138505 tv # Marvel Zombies
+198178 tv # Wonder Man
+"""
+
+NAME = "MCU Timeline"
+
+
 def seed_defaults(db) -> None:
-    if db.list_definitions():
+    defs = db.list_definitions()
+    if not defs:
+        i = db.create_definition(NAME, "The full Marvel Cinematic Universe (films and series) in timeline order",
+                                 "manual", {"text": MCU_TIMELINE}, 1440)
+        db.update_definition(i, enabled=False)
         return
-    i = db.create_definition("MCU Timeline", "Marvel Cinematic Universe in chronological order",
-                             "manual", {"text": MCU_TIMELINE}, 1440)
-    db.update_definition(i, enabled=False)
+    for d in defs:  # upgrade an untouched first-generation seed
+        if d["name"] == NAME and d["source_config"].get("text") == MCU_TIMELINE_V1:
+            db.update_definition(d["id"], source_config={"text": MCU_TIMELINE},
+                                 overview="The full Marvel Cinematic Universe (films and series) in timeline order")
