@@ -1,15 +1,121 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tofa Collection Creator</title>
+<title>{% block title %}Collections{% endblock %} · Tofa Collection Creator</title>
 <style>
-:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#ddd;--acc:#0a7;--bad:#c33}
-@media(prefers-color-scheme:dark){:root{--bg:#10161a;--fg:#e8eef2;--mut:#98a4ac;--line:#2a343b;--acc:#2dd4a0;--bad:#ff6b6b}}
-body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:900px;padding:16px}
-a{color:var(--acc)}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid var(--line);padding:8px;text-align:left}
-input,select,textarea{background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:6px;width:100%;box-sizing:border-box}
-label{display:block;margin:12px 0 4px}button{padding:6px 12px;cursor:pointer}.err{color:var(--bad)}.mut{color:var(--mut)}
-form.inline{display:inline}
+:root{
+  --bg:#f3f4f6;--panel:#fff;--side:#1f2327;--side-fg:#c9cfd6;--side-act:#2dd4a0;
+  --fg:#1c2127;--mut:#6b7380;--line:#dfe2e7;--hover:#f6f7f9;--input:#fff;
+  --acc:#0f9d78;--acc-fg:#fff;--ok:#0f9d78;--bad:#d64545;--warn:#b7791f;
+  --ok-bg:#e1f5ee;--bad-bg:#fbe7e7;--warn-bg:#fbf0d9;--idle-bg:#eceef1;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1a1c20;--panel:#23262b;--side:#15171a;--side-fg:#aab1ba;--side-act:#2dd4a0;
+  --fg:#e6e8eb;--mut:#8b919a;--line:#32363c;--hover:#2a2e34;--input:#1a1c20;
+  --acc:#2dd4a0;--acc-fg:#0b1f18;--ok:#2dd4a0;--bad:#ff7070;--warn:#f0b955;
+  --ok-bg:#16362d;--bad-bg:#3a2223;--warn-bg:#3a3020;--idle-bg:#2d3138;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;min-height:100vh}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+/* sidebar */
+.side{width:220px;flex:none;background:var(--side);color:var(--side-fg);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:18px 20px;font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;border-bottom:1px solid #ffffff14}
+.brand small{display:block;font-size:11px;font-weight:400;color:var(--side-fg);margin-top:2px}
+.nav{padding:10px 0;display:flex;flex-direction:column}
+.nav a{padding:10px 20px;color:var(--side-fg);border-left:3px solid transparent}
+.nav a:hover{background:#ffffff0d;text-decoration:none;color:#fff}
+.nav a.on{color:#fff;border-left-color:var(--side-act);background:#ffffff12}
+
+/* main */
+.main{flex:1;min-width:0}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 24px;background:var(--panel);border-bottom:1px solid var(--line)}
+.bar h1{margin:0;font-size:18px;font-weight:600;margin-right:auto}
+.content{padding:20px 24px;max-width:1100px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:4px;margin-bottom:20px}
+.panel>h2,.panel>h3{margin:0;padding:12px 16px;font-size:14px;font-weight:600;border-bottom:1px solid var(--line)}
+.pad{padding:16px}
+
+/* buttons */
+.btn,button{font:inherit;display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer;text-decoration:none}
+.btn:hover,button:hover{background:var(--hover);text-decoration:none}
+.btn.primary,button.primary{background:var(--acc);border-color:var(--acc);color:var(--acc-fg);font-weight:600}
+.btn.primary:hover,button.primary:hover{filter:brightness(1.08);background:var(--acc)}
+.btn.danger,button.danger{color:var(--bad);border-color:var(--bad)}
+.btn.sm,button.sm{padding:3px 10px;font-size:13px}
+button:disabled{opacity:.6;cursor:progress}
+form.inline{display:inline;margin:0}
+
+/* status */
+.notice{padding:10px 16px;border-radius:4px;margin-bottom:16px;border:1px solid var(--line)}
+.notice.ok{background:var(--ok-bg);border-color:transparent;color:var(--ok)}
+.notice.bad{background:var(--bad-bg);border-color:transparent;color:var(--bad)}
+.notice.warn{background:var(--warn-bg);border-color:transparent;color:var(--warn)}
+.pill{display:inline-block;padding:1px 9px;border-radius:10px;font-size:12px;font-weight:600;background:var(--idle-bg);color:var(--mut);white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.failed{background:var(--bad-bg);color:var(--bad)}
+.pill.aborted{background:var(--warn-bg);color:var(--warn)}.pill.on{background:var(--ok-bg);color:var(--ok)}
+.mut{color:var(--mut)}.err{color:var(--bad)}
+
+/* table */
+table{width:100%;border-collapse:collapse}
+th{padding:9px 16px;text-align:left;font-weight:600;color:var(--mut);font-size:12px;border-bottom:1px solid var(--line)}
+td{padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr:hover{background:var(--hover)}
+td.act{text-align:right;white-space:nowrap}
+td .name{font-weight:600;color:var(--fg)}
+.empty{padding:36px 16px;text-align:center;color:var(--mut)}
+ul.list{list-style:none;margin:0;padding:0}
+ul.list li{padding:8px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
+ul.list li:last-child{border-bottom:0}
+
+/* forms */
+.field{display:grid;grid-template-columns:220px 1fr;gap:6px 20px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:start}
+.field:last-child{border-bottom:0}
+.field>label{font-weight:600;padding-top:6px}
+.field .hint{grid-column:2;color:var(--mut);font-size:12px;margin-top:-2px}
+input[type=text],input[type=password],input[type=url],input:not([type]),select,textarea{width:100%;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:4px;background:var(--input);color:var(--fg)}
+textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
+.check{display:flex;gap:8px;align-items:center;padding-top:6px}
+.check input{width:auto}
+.foot{padding:12px 16px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--line)}
+
+/* mobile: sidebar becomes a top bar */
+@media(max-width:760px){
+  body{flex-direction:column}
+  .side{width:100%;height:auto;position:static;flex-direction:row;align-items:center;overflow-x:auto}
+  .brand{border:0;padding:12px 16px;white-space:nowrap}.brand small{display:none}
+  .nav{flex-direction:row;padding:0}
+  .nav a{border-left:0;border-bottom:3px solid transparent;white-space:nowrap}
+  .nav a.on{border-bottom-color:var(--side-act)}
+  .bar,.content{padding-left:14px;padding-right:14px}
+  .field{grid-template-columns:1fr}.field .hint{grid-column:1}
+  .hide-sm{display:none}
+  th,td{padding:8px 10px}
+}
 </style></head><body>
-<h1><a href="/" style="text-decoration:none">Tofa Collection Creator</a> <a href="/settings" style="font-size:14px;font-weight:normal">Settings</a></h1>
-{% block body %}{% endblock %}
+<aside class="side">
+  <div class="brand">Tofa Collections<small>Collection Creator</small></div>
+  <nav class="nav">
+    <a href="/" class="{{ 'on' if request.url.path in ('/',) or request.url.path.endswith(('/preview','/edit')) }}">Collections</a>
+    <a href="/new" class="{{ 'on' if request.url.path == '/new' }}">Add new</a>
+    <a href="/settings" class="{{ 'on' if request.url.path == '/settings' }}">Settings</a>
+  </nav>
+</aside>
+<div class="main">
+  <header class="bar"><h1>{% block heading %}Collections{% endblock %}</h1>{% block toolbar %}{% endblock %}</header>
+  <main class="content">{% block body %}{% endblock %}</main>
+</div>
+<script>
+document.querySelectorAll('time[datetime]').forEach(function(t){
+  var d=new Date(t.getAttribute('datetime'));
+  if(!isNaN(d)) t.textContent=d.toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+});
+document.querySelectorAll('form[data-busy]').forEach(function(f){
+  f.addEventListener('submit', function(){
+    var b=f.querySelector('button'); if(b){ b.disabled=true; b.textContent=f.dataset.busy; }
+  });
+});
+</script>
 </body></html>

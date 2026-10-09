@@ -1,13 +1,34 @@
-{% extends "base.html" %}{% block body %}
-{% if tofa_error %}<p class="err">Tofa: {{ tofa_error }}</p>{% else %}<p class="mut">Connected to Tofa {{ info.version }}</p>{% endif %}
-<p><a href="/new">+ New collection</a></p>
-<table><tr><th>Name</th><th>Source</th><th>Last run</th><th></th></tr>
+{% extends "base.html" %}
+{% block toolbar %}<a class="btn primary" href="/new">Add collection</a>{% endblock %}
+{% block body %}
+{% if tofa_error %}
+<div class="notice bad">Tofa: {{ tofa_error }}. <a href="/settings">Open settings</a></div>
+{% else %}
+<div class="notice ok">Connected to Tofa {{ info.version }}</div>
+{% endif %}
+<div class="panel">
+<table>
+<thead><tr><th>Name</th><th class="hide-sm">Source</th><th>Last run</th><th>Schedule</th><th></th></tr></thead>
+<tbody>
 {% for row in rows %}{% set d = row.d %}{% set run = row.run %}
-<tr><td>{{ d.name }}{% if not d.enabled %} <span class="mut">(off)</span>{% endif %}</td>
-<td>{{ d.source_type }}</td>
-<td>{% if run %}<span class="{{ 'err' if run.status in ('failed','aborted') else '' }}">{{ run.status }}</span> {{ run.ts }}<br><span class="mut">{{ run.message }}</span>
-{% if run.missing %}<br><span class="mut">{{ run.missing|length }} not in library</span>{% endif %}{% else %}<span class="mut">never</span>{% endif %}</td>
-<td><a href="/{{ d.id }}/preview">Preview</a> · <a href="/{{ d.id }}/edit">Edit</a>
-<form class="inline" method="post" action="/{{ d.id }}/run"><button>Run now</button></form></td></tr>
-{% else %}<tr><td colspan="4" class="mut">No collections yet.</td></tr>{% endfor %}</table>
+<tr>
+  <td><a class="name" href="/{{ d.id }}/preview">{{ d.name }}</a>
+      {% if d.overview %}<div class="mut">{{ d.overview }}</div>{% endif %}</td>
+  <td class="hide-sm mut">{{ d.source_type }}</td>
+  <td>{% if run %}<span class="pill {{ run.status }}">{{ run.status }}</span>
+      <time class="mut" datetime="{{ run.ts|replace(' ', 'T') }}Z">{{ run.ts }}</time>
+      <div class="mut">{{ run.message }}</div>
+      {% else %}<span class="pill">never run</span>{% endif %}</td>
+  <td>{% if d.enabled %}<span class="pill on">every {{ d.interval_minutes }} min</span>{% else %}<span class="pill">off</span>{% endif %}</td>
+  <td class="act">
+    <a class="btn sm" href="/{{ d.id }}/preview">Preview</a>
+    <a class="btn sm" href="/{{ d.id }}/edit">Edit</a>
+    <form class="inline" method="post" action="/{{ d.id }}/run" data-busy="Running…"><button class="sm primary">Run now</button></form>
+  </td>
+</tr>
+{% else %}
+<tr><td colspan="5"><div class="empty">No collections yet. <a href="/new">Add your first collection</a>.</div></td></tr>
+{% endfor %}
+</tbody></table>
+</div>
 {% endblock %}

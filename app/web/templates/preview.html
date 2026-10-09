@@ -1,24 +1,36 @@
-{% extends "base.html" %}{% block body %}
-{% if error %}<p class="err">{{ error }}</p>{% endif %}
-{% if d %}<h2>Preview: {{ d.name }}</h2>{% endif %}
+{% extends "base.html" %}
+{% block heading %}{% if d %}{{ d.name }}{% else %}Collection{% endif %}{% endblock %}
+{% block toolbar %}{% if d %}
+<a class="btn" href="/{{ d.id }}/edit">Edit</a>
+<form class="inline" method="post" action="/{{ d.id }}/run" data-busy="Running…"><button class="primary">Run now</button></form>
+{% endif %}{% endblock %}
+{% block body %}
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
 {% if r %}
-{% if r.status == 'failed' or r.status == 'aborted' %}<p class="err">{{ r.status }}: {{ r.message }}</p>
-{% else %}
-<p>Would add <b>{{ r.added }}</b>, remove <b>{{ r.removed }}</b>.</p>
-{% if r.add_items %}<h3>Will be added ({{ r.add_items|length }})</h3><ul>
-{% for m in r.add_items %}<li><a href="https://www.themoviedb.org/{{ 'tv' if m.media_type == 'tv' else 'movie' }}/{{ m.tmdb_id }}" target="_blank" rel="noopener">{{ m.title or m.tmdb_id }}</a> <span class="mut">{{ m.tmdb_id }} {{ m.media_type }}</span></li>{% endfor %}</ul>{% endif %}
-{% endif %}
-{% if r.missing %}<h3>Not in Tofa library ({{ r.missing|length }})</h3><ul>
-{% for m in r.missing %}<li><a href="https://www.themoviedb.org/{{ 'tv' if m.media_type == 'tv' else 'movie' }}/{{ m.tmdb_id }}" target="_blank" rel="noopener">{{ m.title or m.tmdb_id }}</a> <span class="mut">{{ m.tmdb_id }} {{ m.media_type }}</span></li>{% endfor %}</ul>{% endif %}
+  {% if r.status == 'failed' or r.status == 'aborted' %}
+  <div class="notice {{ 'bad' if r.status == 'failed' else 'warn' }}">{{ r.message }}</div>
+  {% else %}
+  <div class="notice ok">Preview: <b>{{ r.added }}</b> to add, <b>{{ r.removed }}</b> to remove. Nothing is written until you run it.</div>
+  {% if r.add_items %}
+  <div class="panel"><h3>Will be added ({{ r.add_items|length }})</h3><ul class="list">
+  {% for m in r.add_items %}<li><a href="https://www.themoviedb.org/{{ 'tv' if m.media_type == 'tv' else 'movie' }}/{{ m.tmdb_id }}" target="_blank" rel="noopener">{{ m.title or m.tmdb_id }}</a><span class="pill">{{ 'series' if m.media_type == 'tv' else 'movie' }}</span><span class="mut">{{ m.tmdb_id }}</span></li>{% endfor %}
+  </ul></div>
+  {% endif %}
+  {% endif %}
+  {% if r.missing %}
+  <div class="panel"><h3>Not in your Tofa library ({{ r.missing|length }})</h3><ul class="list">
+  {% for m in r.missing %}<li><a href="https://www.themoviedb.org/{{ 'tv' if m.media_type == 'tv' else 'movie' }}/{{ m.tmdb_id }}" target="_blank" rel="noopener">{{ m.title or m.tmdb_id }}</a><span class="pill">{{ 'series' if m.media_type == 'tv' else 'movie' }}</span><span class="mut">{{ m.tmdb_id }}</span></li>{% endfor %}
+  </ul></div>
+  <p class="mut">These are skipped for now and added automatically once they are in your library.</p>
+  {% endif %}
 {% endif %}
 {% if d %}
-<form method="post" action="/{{ d.id }}/run"><button>Run now</button></form>
-<p class="mut">To schedule it, tick "Enabled" under <a href="/{{ d.id }}/edit">Edit</a> after previewing.</p>
-<h3>Delete</h3>
+<p class="mut">To keep this collection up to date automatically, tick <b>Enabled</b> under <a href="/{{ d.id }}/edit">Edit</a> after previewing.</p>
+<div class="panel"><h3>Delete collection</h3>
 <form method="post" action="/{{ d.id }}/delete">
-<label><input type="checkbox" name="confirm" value="yes" style="width:auto"> Confirm delete</label>
-<label><input type="checkbox" name="delete_in_tofa" value="yes" style="width:auto"> Also delete collection in Tofa</label>
-<button>Delete</button></form>
+  <div class="field"><label>Confirm</label><div class="check"><input type="checkbox" name="confirm" value="yes" id="c1"><label for="c1" style="font-weight:400;padding:0">Yes, delete this definition</label></div></div>
+  <div class="field"><label>Tofa collection</label><div class="check"><input type="checkbox" name="delete_in_tofa" value="yes" id="c2"><label for="c2" style="font-weight:400;padding:0">Also delete the collection in Tofa</label></div></div>
+  <div class="foot"><button class="danger">Delete</button></div>
+</form></div>
 {% endif %}
-<p><a href="/">Back</a></p>
 {% endblock %}
