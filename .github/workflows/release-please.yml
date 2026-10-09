@@ -97,9 +97,9 @@ jobs:
       - uses: docker/build-push-action@v7
         with:
           context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: VERSION=${{ steps.pick.outputs.version }}
-          # Plain Docker (schema 2) manifest so Unraid's "check for updates" can read it.
+          # Docker (schema 2) manifest, not OCI: Unraid's "check for updates" cannot read OCI
+          # media types, and buildx emits OCI by default. Same fix as in the Sylo workflow.
+          outputs: type=image,"name=${{ join(fromJSON(steps.meta.outputs.json).tags, ',') }}",oci-mediatypes=false,push=true
           provenance: false
