@@ -30,9 +30,15 @@ class TmdbListSource(_Tmdb):
         super().__init__(key, transport); self.id = cfg["id"]
 
     def fetch(self) -> list[SourceItem]:
-        data = self.get(f"/list/{self.id}")
-        return [SourceItem(i["id"], i.get("media_type", "movie"), i.get("title") or i.get("name", ""))
-                for i in data["items"]]
+        out: list[SourceItem] = []
+        page = 1
+        while True:
+            data = self.get(f"/list/{self.id}", page=page)
+            out += [SourceItem(i["id"], i.get("media_type", "movie"), i.get("title") or i.get("name", ""))
+                    for i in data["items"]]
+            if page >= data.get("total_pages", 1):
+                return out
+            page += 1
 
 class TmdbDiscoverSource(_Tmdb):
     def __init__(self, key, cfg, transport=None):

@@ -8,17 +8,17 @@ class TofaError(Exception):
 
 class TofaClient:
     BATCH = 200
-    RETRIES = 3
 
-    def __init__(self, base_url: str, api_key: str, *, transport=None):
+    def __init__(self, base_url: str, api_key: str, *, transport=None, retries: int = 3, timeout: float = 30):
+        self.retries = retries
         self._http = httpx.Client(
             base_url=base_url.rstrip("/") + "/api/v1",
             headers={"Authorization": f"Bearer {api_key}"},
-            timeout=30, transport=transport)
+            timeout=timeout, transport=transport)
 
     def _req(self, method: str, path: str, **kw) -> httpx.Response:
         last: Exception | None = None
-        for attempt in range(self.RETRIES):
+        for attempt in range(self.retries):
             try:
                 r = self._http.request(method, path, **kw)
             except httpx.TransportError as e:
@@ -31,7 +31,8 @@ class TofaClient:
                     last = TofaError(f"Tofa returned {r.status_code}", r.status_code)
                 else:
                     return r
-            time.sleep(2 ** attempt)
+            if attempt < self.retries - 1:
+                time.sleep(2 ** attempt)
         raise last  # type: ignore[misc]
 
     def _ok(self, r: httpx.Response) -> httpx.Response:

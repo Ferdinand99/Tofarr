@@ -5,11 +5,15 @@
 {% if r.status == 'failed' or r.status == 'aborted' %}<p class="err">{{ r.status }}: {{ r.message }}</p>
 {% else %}
 <p>Would add <b>{{ r.added }}</b>, remove <b>{{ r.removed }}</b>.</p>
+{% if r.add_items %}<h3>Will be added ({{ r.add_items|length }})</h3><ul>
+{% for m in r.add_items %}<li><a href="https://www.themoviedb.org/{{ 'tv' if m.media_type == 'tv' else 'movie' }}/{{ m.tmdb_id }}" target="_blank" rel="noopener">{{ m.title or m.tmdb_id }}</a> <span class="mut">{{ m.tmdb_id }} {{ m.media_type }}</span></li>{% endfor %}</ul>{% endif %}
+{% endif %}
 {% if r.missing %}<h3>Not in Tofa library ({{ r.missing|length }})</h3><ul>
-{% for m in r.missing %}<li>{{ m.tmdb_id }} — {{ m.title or '(no title)' }} <span class="mut">{{ m.media_type }}</span></li>{% endfor %}</ul>{% endif %}
-{% endif %}{% endif %}
+{% for m in r.missing %}<li><a href="https://www.themoviedb.org/{{ 'tv' if m.media_type == 'tv' else 'movie' }}/{{ m.tmdb_id }}" target="_blank" rel="noopener">{{ m.title or m.tmdb_id }}</a> <span class="mut">{{ m.tmdb_id }} {{ m.media_type }}</span></li>{% endfor %}</ul>{% endif %}
+{% endif %}
 {% if d %}
 <form method="post" action="/{{ d.id }}/run"><button>Run now</button></form>
+<p class="mut">To schedule it, tick "Enabled" under <a href="/{{ d.id }}/edit">Edit</a> after previewing.</p>
 <h3>Delete</h3>
 <form method="post" action="/{{ d.id }}/delete">
 <label><input type="checkbox" name="confirm" value="yes" style="width:auto"> Confirm delete</label>

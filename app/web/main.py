@@ -1,6 +1,7 @@
 from pathlib import Path
+from urllib.parse import urlsplit
 from fastapi import FastAPI, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.sources import SOURCE_TYPES, get_source
 from app.sources.base import SourceError
@@ -37,8 +38,18 @@ def _values_from_def(d: dict) -> dict:
             "trakt_slug": c.get("slug", ""), "interval_minutes": d["interval_minutes"],
             "prune": d["prune"], "enabled": d["enabled"]}
 
-def create_app(settings, db, tofa_factory, scheduler=None) -> FastAPI:
+def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -> FastAPI:
     app = FastAPI(title="Tofa Collection Creator")
+    probe_factory = probe_factory or tofa_factory
+    previewed: set[int] = set()  # definitions the user has seen a dry run for since startup
+
+    @app.middleware("http")
+    async def same_origin_only(request: Request, call_next):
+        if request.method == "POST":
+            src = request.headers.get("origin") or request.headers.get("referer")
+            if src and urlsplit(src).netloc != request.headers.get("host", ""):
+                return PlainTextResponse("Cross-site request refused", status_code=403)
+        return await call_next(request)
 
     def page(request, name, status=200, **ctx):
         return TEMPLATES.TemplateResponse(request, name, ctx, status_code=status)
@@ -66,7 +77,7 @@ def create_app(settings, db, tofa_factory, scheduler=None) -> FastAPI:
     @app.get("/")
     def index(request: Request):
         try:
-            info, tofa_error = tofa_factory().system_info(), None
+            info, tofa_error = probe_factory().system_info(), None
         except TofaError as e:
             info, tofa_error = None, str(e)
         rows = [{"d": d, "run": db.last_run(d["id"])} for d in db.list_definitions()]
@@ -75,7 +86,7 @@ def create_app(settings, db, tofa_factory, scheduler=None) -> FastAPI:
     @app.get("/new")
     def new_form(request: Request):
         return form_page(request, {"source_type": "manual", "interval_minutes": 1440,
-                                   "prune": True, "enabled": True, "discover_media_type": "movie",
+                                   "prune": True, "enabled": False, "discover_media_type": "movie",
                                    "max_pages": 3})
 
     @app.post("/new")
@@ -86,10 +97,8 @@ def create_app(settings, db, tofa_factory, scheduler=None) -> FastAPI:
         cfg, minutes = ok
         i = db.create_definition(values["name"].strip(), values.get("overview", ""), values["source_type"],
                                  cfg, minutes, values["prune"])
-        db.update_definition(i, enabled=values["enabled"])
-        if scheduler:
-            scheduler.reschedule(i)
-        return RedirectResponse("/", 303)
+        db.update_definition(i, enabled=False)  # enable only after a preview, via Edit
+        return RedirectResponse(f"/{i}/preview", 303)
 
     @app.get("/{def_id}/edit")
     def edit_form(request: Request, def_id: int):
@@ -107,6 +116,8 @@ def create_app(settings, db, tofa_factory, scheduler=None) -> FastAPI:
         if err:
             return form_page(request, values, err, 400, def_id)
         cfg, minutes = ok
+        if values["enabled"] and not d["tofa_id"] and def_id not in previewed:
+            return form_page(request, values, "Preview this collection before enabling it.", 400, def_id)
         db.update_definition(def_id, name=values["name"].strip(), overview=values.get("overview", ""),
                              source_type=values["source_type"], source_config=cfg,
                              interval_minutes=minutes, prune=values["prune"], enabled=values["enabled"])
@@ -123,10 +134,15 @@ def create_app(settings, db, tofa_factory, scheduler=None) -> FastAPI:
     @app.get("/{def_id}/preview")
     def preview(request: Request, def_id: int):
         r = run_definition(def_id, db=db, tofa=tofa_factory(), settings=settings, dry_run=True)
+        if r.status == "preview":
+            previewed.add(def_id)
         return page(request, "preview.html", d=db.get_definition(def_id), r=r)
 
     @app.post("/{def_id}/run")
     def run(def_id: int):
+        d = db.get_definition(def_id)
+        if d and not d["tofa_id"] and def_id not in previewed:
+            return RedirectResponse(f"/{def_id}/preview", 303)
         if scheduler:
             scheduler.run_now(def_id)
         else:

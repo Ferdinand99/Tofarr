@@ -16,6 +16,7 @@ class RunResult:
     missing: list[SourceItem] = field(default_factory=list)
     add_ids: list[str] = field(default_factory=list)
     remove_ids: list[str] = field(default_factory=list)
+    add_items: list[SourceItem] = field(default_factory=list)
 
 def _record(db: Db, def_id: int, r: RunResult, dry_run: bool) -> RunResult:
     if not dry_run:
@@ -33,11 +34,18 @@ def run_definition(def_id: int, *, db: Db, tofa, settings: Settings,
         if not items:
             return _record(db, def_id, RunResult("aborted", "Source returned no items; collection left untouched"), dry_run)
         resolved = tofa.resolve_tmdb([i.key for i in items])
+        if not resolved:
+            return _record(db, def_id, RunResult(
+                "aborted", f"None of the {len(items)} source items were found in the Tofa library; "
+                           "collection left untouched", missing=items), dry_run)
         cid = d["tofa_id"]
         current = tofa.collection_item_ids(cid) if cid else None
         diff = compute_diff(items, resolved, current or set(), d["prune"])
+        add_set = set(diff.add)
+        add_items = [i for i in items if resolved.get(i.key) in add_set]
         if dry_run:
-            return RunResult("preview", "", len(diff.add), len(diff.remove), diff.missing, diff.add, diff.remove)
+            return RunResult("preview", "", len(diff.add), len(diff.remove), diff.missing,
+                             diff.add, diff.remove, add_items)
         if current is None:  # never created, or deleted in Tofa
             cid = tofa.create_collection(d["name"], d["overview"])
             db.set_tofa_id(def_id, cid)
