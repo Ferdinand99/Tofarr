@@ -1,18 +1,18 @@
 <?xml version="1.0"?>
 <Container version="2">
-  <Name>Tofa-Collection-Creator</Name>
-  <Repository>ghcr.io/ferdinand99/tofa-collection-creator:latest</Repository>
-  <Registry>https://github.com/Ferdinand99/tofa-collection-creator/pkgs/container/tofa-collection-creator</Registry>
+  <Name>Tofarr</Name>
+  <Repository>ghcr.io/ferdinand99/tofarr:latest</Repository>
+  <Registry>https://github.com/Ferdinand99/tofarr/pkgs/container/tofarr</Registry>
   <Network>bridge</Network>
   <MyIP/>
   <Shell>sh</Shell>
   <Privileged>false</Privileged>
-  <Support>https://github.com/Ferdinand99/tofa-collection-creator/issues</Support>
-  <Project>https://github.com/Ferdinand99/tofa-collection-creator</Project>
+  <Support>https://github.com/Ferdinand99/tofarr/issues</Support>
+  <Project>https://github.com/Ferdinand99/tofarr</Project>
   <Overview>Creates Tofa custom collections from TMDB collections/lists, TMDB discover rules (actor, genre, studio), Trakt lists or a manual list of TMDB ids, and keeps them in sync on a schedule. Includes a web UI with a dry-run preview before anything is written, and lists titles that are not in your Tofa library yet. Setup: open the web UI, go to Settings and enter your server URL and an admin API key (the TOFA_URL / TOFA_API_KEY variables below are optional defaults). Create the key in Tofa under Server &gt; Settings &gt; API keys and set TOFA_URL to the direct address of your server (not the relay). A free TMDB API key is needed for TMDB sources.</Overview>
   <Category>MediaServer:Other Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
-  <TemplateURL>https://raw.githubusercontent.com/Ferdinand99/unraid-templates/main/templates/tofa-collection-creator.xml</TemplateURL>
+  <TemplateURL>https://raw.githubusercontent.com/Ferdinand99/unraid-templates/main/templates/tofarr.xml</TemplateURL>
   <Icon/>
   <ExtraParams/>
   <PostArgs/>
@@ -33,13 +33,13 @@
   <Config
     Name="Config Directory"
     Target="/config"
-    Default="/mnt/user/appdata/tofa-collection-creator"
+    Default="/mnt/user/appdata/tofarr"
     Mode="rw"
     Description="Where the SQLite database (collection definitions and run history) is stored."
     Type="Path"
     Display="always"
     Required="true"
-    Mask="false">/mnt/user/appdata/tofa-collection-creator</Config>
+    Mask="false">/mnt/user/appdata/tofarr</Config>
   <Config
     Name="TOFA_URL"
     Target="TOFA_URL"

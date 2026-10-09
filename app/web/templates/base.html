@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{% block title %}Collections{% endblock %} · Tofa Collection Creator</title>
+<title>{% block title %}Collections{% endblock %} · Tofarr</title>
 <style>
 :root{
   --bg:#f3f4f6;--panel:#fff;--side:#1f2327;--side-fg:#c9cfd6;--side-act:#2dd4a0;
@@ -114,7 +114,7 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 }
 </style></head><body>
 <aside class="side">
-  <div class="brand">Tofa Collections<small>Collection Creator</small></div>
+  <div class="brand">Tofarr<small>Collections for Tofa</small></div>
   <nav class="nav">
     <a href="/" class="{{ 'on' if request.url.path in ('/',) or request.url.path.endswith(('/preview','/edit')) }}">Collections</a>
     <a href="/discover" class="{{ 'on' if request.url.path.startswith('/discover') }}">Discover</a>

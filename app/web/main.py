@@ -57,7 +57,7 @@ def _values_from_def(d: dict) -> dict:
             "prune": d["prune"], "enabled": d["enabled"]}
 
 def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, seerr_factory=None) -> FastAPI:
-    app = FastAPI(title="Tofa Collection Creator")
+    app = FastAPI(title="Tofarr")
     probe_factory = probe_factory or tofa_factory
     get_seerr = seerr_factory or (lambda: SeerrClient(settings.seerr_url, settings.seerr_api_key))
 

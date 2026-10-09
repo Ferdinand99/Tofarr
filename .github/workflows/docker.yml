@@ -32,7 +32,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/ferdinand99/tofa-collection-creator
+          images: ghcr.io/ferdinand99/tofarr
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=ref,event=tag

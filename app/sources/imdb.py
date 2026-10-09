@@ -33,7 +33,7 @@ class _Imdb:
     def __init__(self, tmdb_key: str, transport=None):
         self.tmdb_key = tmdb_key
         self.http = httpx.Client(timeout=30, transport=transport, headers={
-            "User-Agent": "Mozilla/5.0 (compatible; tofa-collection-creator)", "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (compatible; tofarr)", "Content-Type": "application/json",
             "x-imdb-client-name": "imdb-web-next-localized", "Origin": "https://www.imdb.com",
             "Referer": "https://www.imdb.com/"})
 

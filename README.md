@@ -1,4 +1,6 @@
-# Tofa Collection Creator
+# Tofarr
+
+> An unofficial companion app for [Tofa](https://tofa.tv). Not made by or affiliated with Tofa.
 
 Docker app that creates Tofa custom collections from external sources and keeps them up to date.
 
@@ -40,7 +42,7 @@ The Discover page lists Tofa shelves and TMDB, Trakt and IMDb charts. Titles you
 - Needs a direct connection to the server; API keys do not work through the relay.
 
 ## Unraid
-Add `https://github.com/Ferdinand99/unraid-templates` under Docker > Template repositories, or copy `unraid/tofa-collection-creator.xml` into that repo's `templates/`.
+Add `https://github.com/Ferdinand99/unraid-templates` under Docker > Template repositories, or copy `unraid/tofarr.xml` into that repo's `templates/`.
 
 ## Develop
 ```
