@@ -187,3 +187,13 @@ def test_create_refuses_unknown_source_and_missing_key(tmp_path):
     nokey = TestClient(create_app(st(tmdb=None), db2, lambda: WebTofa()))
     r = nokey.post("/discover/create", data={"type": "tmdb_chart", "arg": "movie/popular", "name": "n"})
     assert r.status_code == 400 and "TMDB_API_KEY" in r.text and db2.list_definitions() == []
+
+
+@respx.mock
+def test_fetch_image_follows_the_servers_redirect_to_the_cached_file():
+    uid = "3b6221b3-e927-440c-a673-5c33734db29c"
+    respx.get("http://t/api/v1/auth/image-token").mock(return_value=httpx.Response(200, json={"token": "T"}))
+    respx.get(f"http://t/api/v1/artwork/{uid}/poster").mock(return_value=httpx.Response(
+        302, headers={"location": "/cache/images/posters/x.jpg?st=T"}))
+    respx.get("http://t/cache/images/posters/x.jpg").mock(return_value=httpx.Response(200, content=b"PIXELS", headers={"content-type": "image/jpeg"}))
+    assert TofaClient("http://t", "k").fetch_image(f"artwork/{uid}/poster") == (b"PIXELS", "image/jpeg")
