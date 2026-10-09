@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
+{% block toolbar %}<a class="btn" href="/discover?source={{ back }}">Back to Discover</a>{% endblock %}
+{% block body %}
+{% if error %}<div class="notice bad">{{ error }}</div>{% else %}
+<div class="notice ok">{{ view.have }} of {{ view.total }} titles are in your Tofa library.</div>
+<div class="panel">
+  <form method="post" action="/discover/create" class="makebar">
+    <input type="hidden" name="type" value="{{ type }}"><input type="hidden" name="arg" value="{{ arg }}">
+    <input name="name" value="{{ title }}" aria-label="Collection name" required>
+    <button class="primary">Create collection</button>
+  </form>
+  <p class="mut pad" style="padding-top:0">You see a preview first. Only titles you have are added. The rest are added once they are in your library.</p>
+</div>
+<p><a class="btn sm {{ '' if only else 'primary' }}" href="/discover/shelf?type={{ type|urlencode }}&amp;arg={{ arg|urlencode }}&amp;title={{ title|urlencode }}">All titles</a>
+   <a class="btn sm {{ 'primary' if only }}" href="/discover/shelf?type={{ type|urlencode }}&amp;arg={{ arg|urlencode }}&amp;title={{ title|urlencode }}&amp;only=1">Only in my library</a></p>
+<div class="grid">
+  {% for i in items %}{% set label = (seerr_status or {}).get(i.tmdb_id ~ '-' ~ i.media_type) %}
+  <div class="poster {{ '' if i.in_library else 'dim' }}">
+    {% if i.poster %}<img loading="lazy" src="{{ poster_src(i.poster) }}" alt="">{% else %}<div class="noimg">{{ i.title }}</div>{% endif %}
+    {% if i.in_library %}<span class="badge">In library</span>{% endif %}
+    <span class="cap">{{ i.title }}{% if i.year %} <span class="mut">{{ i.year }}</span>{% endif %}</span>
+    {% if seerr_on and not i.in_library %}
+      {% if label %}<span class="pill on">{{ label }}</span>
+      {% else %}<button class="sm" data-request data-id="{{ i.tmdb_id }}" data-type="{{ i.media_type }}">Request</button>{% endif %}
+    {% endif %}
+  </div>
+  {% else %}<p class="mut">Nothing to show.</p>{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

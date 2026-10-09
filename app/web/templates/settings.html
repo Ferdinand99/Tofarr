@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block heading %}Settings{% endblock %}
+{% block body %}
+{% if message %}<div class="notice ok">{{ message }}</div>{% endif %}
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+<form method="post" class="panel">
+  <h2>Tofa server</h2>
+  <div class="field"><label for="u">URL</label>
+    <input id="u" name="tofa_url" value="{{ url }}" placeholder="http://192.168.1.10:33333" required>
+    <div class="hint">Direct address of your Tofa server. API keys do not work through the relay.</div></div>
+  <div class="field"><label for="k">Admin API key</label>
+    <input id="k" type="password" name="tofa_api_key" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if is_set.tofa_api_key else 'Create one in Tofa under Server, Settings, API keys' }}">
+    <div class="hint">Stored in /config and never shown again.</div></div>
+  <h2 style="border-top:1px solid var(--line)">Metadata sources</h2>
+  <div class="field"><label for="t">TMDB API key</label>
+    <input id="t" type="password" name="tmdb_api_key" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if is_set.tmdb_api_key else 'Needed for TMDB sources' }}">
+    <div class="hint">Free at themoviedb.org/settings/api.</div></div>
+  <div class="field"><label for="r">Trakt client ID</label>
+    <input id="r" type="password" name="trakt_client_id" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if is_set.trakt_client_id else 'Needed for Trakt lists' }}">
+    <div class="hint">Create an app at trakt.tv/oauth/applications.</div></div>
+  <h2 style="border-top:1px solid var(--line)">Seerr (optional)</h2>
+  <div class="field"><label for="su">URL</label>
+    <input id="su" name="seerr_url" value="{{ seerr_url }}" placeholder="http://192.168.1.10:5055">
+    <div class="hint">Lets you request titles you do not have. Leave empty to turn it off.</div></div>
+  <div class="field"><label for="sk">API key</label>
+    <input id="sk" type="password" name="seerr_api_key" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if is_set.seerr_api_key else 'Seerr, Settings, General, API key' }}">
+    <div class="hint">Requests are made as the user that owns this key.</div></div>
+  <div class="foot"><a class="btn" href="/">Back</a><button class="primary">Save and test connection</button></div>
+</form>
+<p class="mut">Values saved here override the container environment variables.</p>
+{% endblock %}

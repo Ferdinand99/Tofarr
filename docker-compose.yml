@@ -1,0 +1,16 @@
+services:
+  tofarr:
+    image: ghcr.io/ferdinand99/tofarr:latest
+    build: .
+    container_name: tofarr
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/config
+    environment:
+      TOFA_URL: ${TOFA_URL}
+      TOFA_API_KEY: ${TOFA_API_KEY}
+      TMDB_API_KEY: ${TMDB_API_KEY:-}
+      TRAKT_CLIENT_ID: ${TRAKT_CLIENT_ID:-}
+      TZ: ${TZ:-Europe/Oslo}
