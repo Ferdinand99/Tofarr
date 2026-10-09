@@ -87,9 +87,10 @@ class TofaClient:
             return None
         return self._ok(r).json()
 
-    def collection_item_ids(self, cid: str) -> set[str] | None:
+    def collection_item_order(self, cid: str) -> list[str] | None:
+        """Media ids in the order Tofa shows them (the order they were added), or None if gone."""
         c = self.get_collection(cid)
-        return None if c is None else {i["id"] for i in c["items"]}
+        return None if c is None else [i["id"] for i in c["items"]]
 
     def update_collection(self, cid: str, *, name: str | None = None, overview: str | None = None) -> None:
         body = {k: v for k, v in (("name", name), ("overview", overview)) if v is not None}

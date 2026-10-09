@@ -57,3 +57,16 @@ def test_no_series_requested_means_no_library_listing_call():
     listing = respx.get("http://t/api/v1/media").mock(return_value=httpx.Response(500))
     TofaClient("http://t", "k").resolve_tmdb([(1726, "movie")])
     assert listing.call_count == 0
+
+
+def test_existing_mcu_definition_gets_an_in_universe_copy_once(tmp_path):
+    db = Db(tmp_path / "t.db")
+    db.create_definition("MCU Timeline", "", "tmdb_list", {"id": 84979}, 1440)   # user's own, release order
+    seed_defaults(db)
+    names = sorted(d["name"] for d in db.list_definitions())
+    assert names == ["MCU Timeline", "MCU Timeline (in-universe order)"]
+    copy = next(d for d in db.list_definitions() if d["name"].endswith("(in-universe order)"))
+    assert copy["enabled"] is False and copy["source_config"]["text"] == MCU_TIMELINE
+    db.delete_definition(copy["id"])
+    seed_defaults(db)
+    assert [d["name"] for d in db.list_definitions()] == ["MCU Timeline"]

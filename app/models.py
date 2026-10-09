@@ -18,7 +18,9 @@ def dedupe(items: list[SourceItem]) -> list[SourceItem]:
 
 @dataclass
 class DiffResult:
-    add: list[str] = field(default_factory=list)
-    remove: list[str] = field(default_factory=list)
+    add: list[str] = field(default_factory=list)      # every PUT, in the order to run them
+    remove: list[str] = field(default_factory=list)   # every DELETE (reorder + prune)
+    new: list[str] = field(default_factory=list)      # added items that were not in the collection
+    moved: list[str] = field(default_factory=list)    # present items removed and re-added to fix order
     missing: list[SourceItem] = field(default_factory=list)
     unchanged: int = 0

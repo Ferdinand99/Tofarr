@@ -6,14 +6,14 @@ from app.tofa.client import TofaError
 
 class FakeTofa:
     def __init__(self, library: dict, coll_items=None, exists=True):
-        self.library, self.items, self.exists = library, set(coll_items or []), exists
+        self.library, self.items, self.exists = library, sorted(coll_items or []), exists
         self.created = 0; self.log = []
     def resolve_tmdb(self, items): return {k: self.library[k] for k in items if k in self.library}
     def create_collection(self, name, overview): self.created += 1; self.exists = True; return "cid2"
-    def collection_item_ids(self, cid): return set(self.items) if self.exists else None
+    def collection_item_order(self, cid): return list(self.items) if self.exists else None
     def update_collection(self, cid, **kw): self.log.append(("patch", kw))
-    def add_item(self, cid, mid): self.items.add(mid); self.log.append(("add", mid))
-    def remove_item(self, cid, mid): self.items.discard(mid); self.log.append(("rm", mid))
+    def add_item(self, cid, mid): self.items.append(mid) if mid not in self.items else None; self.log.append(("add", mid))
+    def remove_item(self, cid, mid): self.items.remove(mid) if mid in self.items else None; self.log.append(("rm", mid))
 
 S = Settings("http://x", "k", None, None, Path("."))
 
@@ -47,7 +47,7 @@ def test_empty_source_does_not_wipe_collection(tmp_path):
     db, i = setup(tmp_path, text="")
     db.set_tofa_id(i, "cid"); t = FakeTofa({}, coll_items={"a", "b"})
     r = run_definition(i, db=db, tofa=t, settings=S)
-    assert r.status == "aborted" and t.items == {"a", "b"}
+    assert r.status == "aborted" and set(t.items) == {"a", "b"}
 
 def test_collection_deleted_in_tofa_is_recreated(tmp_path):
     db, i = setup(tmp_path, text="1")
@@ -61,3 +61,24 @@ def test_tofa_failure_is_recorded_not_raised(tmp_path):
         def resolve_tmdb(self, items): raise TofaError("down")
     r = run_definition(i, db=db, tofa=Boom({}), settings=S)
     assert r.status == "failed" and "down" in r.message and db.last_run(i)["status"] == "failed"
+
+
+def test_existing_collection_is_reordered_to_match_the_source(tmp_path):
+    db, i = setup(tmp_path, text="1\n2\n3")
+    db.set_tofa_id(i, "cid")
+    t = FakeTofa({(1, "movie"): "a", (2, "movie"): "b", (3, "movie"): "c"}, coll_items=["c", "a", "b"])
+    t.items = ["c", "a", "b"]
+    r = run_definition(i, db=db, tofa=t, settings=S)
+    assert t.items == ["a", "b", "c"] and r.moved == 3 and r.added == 0
+    again = run_definition(i, db=db, tofa=t, settings=S)
+    assert again.moved == 0 and again.removed == 0 and again.added == 0
+
+
+def test_late_addition_at_the_end_keeps_existing_items_untouched(tmp_path):
+    db, i = setup(tmp_path, text="1\n2\n3")
+    db.set_tofa_id(i, "cid")
+    t = FakeTofa({(1, "movie"): "a", (2, "movie"): "b", (3, "movie"): "c"})
+    t.items = ["a", "b"]
+    t.log.clear()
+    r = run_definition(i, db=db, tofa=t, settings=S)
+    assert t.items == ["a", "b", "c"] and t.log == [("add", "c")] and r.moved == 0

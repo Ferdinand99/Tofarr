@@ -15,15 +15,15 @@ S = Settings("http://x", "k", "T", None, Path("."))
 
 class FakeTofa:
     def __init__(self, library, coll_items=None, exists=True):
-        self.library, self.items, self.exists = library, set(coll_items or []), exists
+        self.library, self.items, self.exists = library, sorted(coll_items or []), exists
         self.created = 0
     def system_info(self): return {"version": "0"}
     def resolve_tmdb(self, items): return {k: self.library[k] for k in items if k in self.library}
     def create_collection(self, name, overview): self.created += 1; self.exists = True; return "cid"
-    def collection_item_ids(self, cid): return set(self.items) if self.exists else None
+    def collection_item_order(self, cid): return list(self.items) if self.exists else None
     def update_collection(self, cid, **kw): pass
-    def add_item(self, cid, mid): self.items.add(mid)
-    def remove_item(self, cid, mid): self.items.discard(mid)
+    def add_item(self, cid, mid): self.items.append(mid) if mid not in self.items else None
+    def remove_item(self, cid, mid): self.items.remove(mid) if mid in self.items else None
     def delete_collection(self, cid): pass
 
 
@@ -38,7 +38,7 @@ def test_nothing_resolved_leaves_collection_untouched(tmp_path):
     db.set_tofa_id(i, "cid")
     t = FakeTofa({}, coll_items={"a", "b"})
     r = run_definition(i, db=db, tofa=t, settings=S)
-    assert r.status == "aborted" and t.items == {"a", "b"}
+    assert r.status == "aborted" and set(t.items) == {"a", "b"}
 
 def test_nothing_resolved_on_first_run_creates_nothing(tmp_path):
     db, i = make(tmp_path)

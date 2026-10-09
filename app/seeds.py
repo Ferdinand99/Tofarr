@@ -90,14 +90,18 @@ MCU_TIMELINE = """\
 NAME = "MCU Timeline"
 
 
+FLAG = "seeded_mcu_timeline"
+OVERVIEW = "The full Marvel Cinematic Universe (films and series) in timeline order"
+
+
 def seed_defaults(db) -> None:
-    defs = db.list_definitions()
-    if not defs:
-        i = db.create_definition(NAME, "The full Marvel Cinematic Universe (films and series) in timeline order",
-                                 "manual", {"text": MCU_TIMELINE}, 1440)
-        db.update_definition(i, enabled=False)
-        return
-    for d in defs:  # upgrade an untouched first-generation seed
+    for d in db.list_definitions():  # upgrade an untouched first-generation seed
         if d["name"] == NAME and d["source_config"].get("text") == MCU_TIMELINE_V1:
-            db.update_definition(d["id"], source_config={"text": MCU_TIMELINE},
-                                 overview="The full Marvel Cinematic Universe (films and series) in timeline order")
+            db.update_definition(d["id"], source_config={"text": MCU_TIMELINE}, overview=OVERVIEW)
+    if db.get_setting(FLAG):
+        return  # seeded once; never bring it back after the user removed it
+    db.set_setting(FLAG, "1")
+    taken = any(d["name"] == NAME for d in db.list_definitions())
+    i = db.create_definition(NAME + " (in-universe order)" if taken else NAME, OVERVIEW,
+                             "manual", {"text": MCU_TIMELINE}, 1440)
+    db.update_definition(i, enabled=False)

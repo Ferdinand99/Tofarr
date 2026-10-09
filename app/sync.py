@@ -13,6 +13,7 @@ class RunResult:
     message: str = ""
     added: int = 0
     removed: int = 0
+    moved: int = 0
     missing: list[SourceItem] = field(default_factory=list)
     add_ids: list[str] = field(default_factory=list)
     remove_ids: list[str] = field(default_factory=list)
@@ -39,23 +40,27 @@ def run_definition(def_id: int, *, db: Db, tofa, settings: Settings,
                 "aborted", f"None of the {len(items)} source items were found in the Tofa library; "
                            "collection left untouched", missing=items), dry_run)
         cid = d["tofa_id"]
-        current = tofa.collection_item_ids(cid) if cid else None
-        diff = compute_diff(items, resolved, current or set(), d["prune"])
-        add_set = set(diff.add)
-        add_items = [i for i in items if resolved.get(i.key) in add_set]
+        current = tofa.collection_item_order(cid) if cid else None
+        diff = compute_diff(items, resolved, current or [], d["prune"])
+        new_set = set(diff.new)
+        add_items = [i for i in items if resolved.get(i.key) in new_set]
+        pruned = len(diff.remove) - len(diff.moved)
         if dry_run:
-            return RunResult("preview", "", len(diff.add), len(diff.remove), diff.missing,
-                             diff.add, diff.remove, add_items)
+            return RunResult("preview", added=len(diff.new), removed=pruned, moved=len(diff.moved),
+                             missing=diff.missing, add_ids=diff.add, remove_ids=diff.remove,
+                             add_items=add_items)
         if current is None:  # never created, or deleted in Tofa
             cid = tofa.create_collection(d["name"], d["overview"])
             db.set_tofa_id(def_id, cid)
+        for mid in diff.remove:  # removals first: re-adding a moved item only works after it is gone
+            tofa.remove_item(cid, mid)
         for mid in diff.add:
             tofa.add_item(cid, mid)
-        for mid in diff.remove:
-            tofa.remove_item(cid, mid)
-        msg = f"{len(diff.add)} added, {len(diff.remove)} removed, {len(diff.missing)} not in library"
-        return _record(db, def_id, RunResult("ok", msg, len(diff.add), len(diff.remove), diff.missing,
-                                             diff.add, diff.remove), dry_run)
+        msg = (f"{len(diff.new)} added, {pruned} removed, {len(diff.moved)} reordered, "
+               f"{len(diff.missing)} not in library")
+        return _record(db, def_id, RunResult("ok", msg, added=len(diff.new), removed=pruned,
+                                             moved=len(diff.moved), missing=diff.missing,
+                                             add_ids=diff.add, remove_ids=diff.remove), dry_run)
     except (SourceError, TofaError) as e:
         return _record(db, def_id, RunResult("failed", str(e)), dry_run)
     except Exception as e:  # keep the scheduler alive

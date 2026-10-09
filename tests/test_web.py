@@ -9,7 +9,7 @@ S = Settings("http://x", "k", None, None, Path("."))
 class T:
     def system_info(self): return {"version": "0.10"}
     def resolve_tmdb(self, items): return {}
-    def collection_item_ids(self, cid): return set()
+    def collection_item_order(self, cid): return []
     def create_collection(self, n, o): return "c1"
     def add_item(self, *a): pass
     def remove_item(self, *a): pass
