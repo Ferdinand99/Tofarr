@@ -20,6 +20,8 @@ class TofaShelfSource:
         out = []
         for r in rows:
             poster = r.get("poster_path") or ""
+            if poster and not poster.startswith("http"):  # a library image; only reachable by media id
+                poster = f"artwork/{r['local_media_id']}/poster" if r.get("local_media_id") else ""
             out.append(SourceItem(r["tmdb_id"], "tv" if r.get("type") == "tv" else "movie", r.get("title", ""),
                                   r.get("year"), poster, bool(r.get("in_library"))))
         return out

@@ -87,10 +87,9 @@ class TofaClient:
         return self._ok(self._req("GET", f"/discovery/shelf/{key}")).json().get("items", [])
 
     def fetch_image(self, path: str) -> tuple[bytes, str]:
-        """Download a library image (a relative path such as images/posters/x.jpg) with an image token."""
+        """Download library artwork (a path such as artwork/<media id>/poster) with an image token."""
         token = self._ok(self._req("GET", "/auth/image-token")).json()["token"]
-        base = str(self._http.base_url).rsplit("/api/v1", 1)[0]
-        r = self._ok(self._http.get(f"{base}/{path.lstrip('/')}", params={"st": token}))
+        r = self._ok(self._http.get(f"/{path.lstrip('/')}", params={"st": token, "w": 300}))
         return r.content, r.headers.get("content-type", "image/jpeg")
 
     def create_collection(self, name: str, overview: str | None) -> str:

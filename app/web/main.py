@@ -13,7 +13,7 @@ from app.sync import run_definition
 from app.tofa.client import TofaError
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
-IMAGE_PATH = re.compile(r"images/[A-Za-z0-9_./-]+")
+IMAGE_PATH = re.compile(r"artwork/[0-9a-fA-F-]{36}/(poster|backdrop)")
 
 
 def poster_src(p: str) -> str:
@@ -217,7 +217,7 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
 
     @app.get("/discover/img")
     def discover_img(path: str):
-        if not IMAGE_PATH.fullmatch(path) or ".." in path:
+        if not IMAGE_PATH.fullmatch(path):
             return PlainTextResponse("Bad image path", status_code=400)
         try:
             data, ctype = tofa_factory().fetch_image(path)

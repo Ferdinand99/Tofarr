@@ -68,9 +68,15 @@ def test_tofa_shelf_source_returns_items_with_library_flag():
     respx.get("http://tofa:33333/api/v1/discovery/shelf/popular-movies").mock(return_value=httpx.Response(200, json={
         "key": "popular-movies", "items": [
             {"tmdb_id": 1, "type": "movie", "title": "A", "year": 2020, "poster_path": "https://x/p.jpg", "in_library": True},
-            {"tmdb_id": 2, "type": "tv", "title": "B", "year": 2021, "poster_path": None, "in_library": False}]}))
+            {"tmdb_id": 2, "type": "tv", "title": "B", "year": 2021, "poster_path": None, "in_library": False},
+            {"tmdb_id": 3, "type": "movie", "title": "C", "year": 2022, "in_library": True,
+             "poster_path": "images/posters/c.jpg", "local_media_id": "3b6221b3-e927-440c-a673-5c33734db29c"},
+            {"tmdb_id": 4, "type": "movie", "title": "D", "year": 2022, "in_library": True,
+             "poster_path": "images/posters/d.jpg", "local_media_id": None}]}))
     got = get_source("tofa_shelf", {"key": "popular-movies"}, st()).fetch()
-    assert [(i.tmdb_id, i.media_type, i.in_library, i.poster) for i in got] == [(1, "movie", True, "https://x/p.jpg"), (2, "tv", False, "")]
+    assert [(i.tmdb_id, i.media_type, i.in_library, i.poster) for i in got] == [
+        (1, "movie", True, "https://x/p.jpg"), (2, "tv", False, ""), (3, "movie", True, "artwork/3b6221b3-e927-440c-a673-5c33734db29c/poster"),
+        (4, "movie", True, "")]
 
 
 # ---------- tofa client discovery ----------
@@ -80,10 +86,10 @@ def test_client_lists_shelves_and_downloads_library_images():
     respx.get("http://t/api/v1/discovery/page").mock(return_value=httpx.Response(200, json={"heroes": [], "shelves": [
         {"key": "k", "title": "Shelf", "subtitle": "s", "kind": "now", "missing_count": 3, "items": [{}, {}, {}, {}]}]}))
     respx.get("http://t/api/v1/auth/image-token").mock(return_value=httpx.Response(200, json={"token": "TKN"}))
-    img = respx.get("http://t/images/posters/a.jpg").mock(return_value=httpx.Response(200, content=b"JPEG", headers={"content-type": "image/jpeg"}))
+    img = respx.get("http://t/api/v1/artwork/3b6221b3-e927-440c-a673-5c33734db29c/poster").mock(return_value=httpx.Response(200, content=b"JPEG", headers={"content-type": "image/jpeg"}))
     c = TofaClient("http://t", "k")
     assert c.discovery_shelves() == [{"key": "k", "title": "Shelf", "subtitle": "s", "kind": "now", "count": 4, "missing": 3}]
-    assert c.fetch_image("images/posters/a.jpg") == (b"JPEG", "image/jpeg")
+    assert c.fetch_image("artwork/3b6221b3-e927-440c-a673-5c33734db29c/poster") == (b"JPEG", "image/jpeg")
     assert img.calls[0].request.url.params["st"] == "TKN"
 
 
@@ -167,8 +173,9 @@ def test_shelf_page_shows_names_and_library_badges_and_create_makes_a_disabled_d
 
 def test_image_proxy_only_serves_tofa_image_paths(tmp_path):
     c, _ = web(tmp_path)
-    assert c.get("/discover/img", params={"path": "images/posters/a.jpg"}).content == b"IMG"
-    for bad in ("../../etc/passwd", "http://evil/x", "api/v1/users", "images/../secret"):
+    assert c.get("/discover/img", params={"path": "artwork/3b6221b3-e927-440c-a673-5c33734db29c/poster"}).content == b"IMG"
+    for bad in ("../../etc/passwd", "http://evil/x", "api/v1/users", "artwork/../secret", "artwork/x/poster",
+                "images/posters/a.jpg", "artwork/3b6221b3-e927-440c-a673-5c33734db29c/poster/../../users"):
         assert c.get("/discover/img", params={"path": bad}).status_code == 400
 
 
