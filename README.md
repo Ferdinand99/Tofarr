@@ -45,16 +45,15 @@ The Discover page lists Tofa shelves and TMDB, Trakt and IMDb charts. Titles you
 Add `https://github.com/Ferdinand99/unraid-templates` under Docker > Template repositories, or copy `unraid/tofarr.xml` into that repo's `templates/`.
 
 ## Releases
-Versions are git tags. To publish one:
+Releases are automatic and use [release-please](https://github.com/googleapis/release-please).
 
-```
-git tag v0.1.1
-git push origin v0.1.1
-```
+- Write commits in the Conventional Commits style: `feat: ...` for a new feature, `fix: ...` for a bug fix.
+- GitHub keeps a **Release PR** open with the next version and the changelog.
+- Merging that PR creates the tag (`v0.1.0`) and the GitHub release, and builds the images `0.1.0`, `0.1` and `latest`.
+- Pushes to `main` publish only the `edge` image. The Unraid template uses `latest`, so Unraid only updates to releases.
+- The running version is shown at the bottom of the sidebar.
 
-GitHub then builds the images `0.1.1`, `0.1` and `latest`, and creates a release with generated notes.
-Pushes to `main` publish `edge` only. The Unraid template uses `latest`, so Unraid updates only to releases.
-The running version is shown at the bottom of the sidebar.
+To publish the images again for an existing tag, run the **Release** workflow by hand and enter the tag.
 
 ## Develop
 ```

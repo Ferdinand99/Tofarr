@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+  # Manual re-publish: build and push images for a tag that already exists
+  # (for example a release whose image job failed).
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to (re)build and publish images for (for example v0.1.0)
+        required: true
+        type: string
+
+# Least privilege by default; jobs opt into what they need.
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Keeps a "release PR" up to date from Conventional Commits. Merging that PR tags the
+  # commit, publishes a GitHub release and updates CHANGELOG.md.
+  release-please:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v5
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Test gate for the release image (the release PR itself is opened with GITHUB_TOKEN,
+  # so it does not run the normal PR checks).
+  test:
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    needs: [release-please, test]
+    if: always() && (github.event_name == 'workflow_dispatch' || (needs.release-please.outputs.release_created == 'true' && needs.test.result == 'success'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Pick the tag
+        id: pick
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = 'workflow_dispatch' ]; then raw="$DISPATCH_TAG"; else raw="$RELEASE_TAG"; fi
+          raw="$(echo "$raw" | tr -d '[:space:]')"
+          if [ -z "$raw" ]; then echo "::error::No tag to build"; exit 1; fi
+          tag="v${raw#v}"   # accepts 0.1.0 or v0.1.0; git tags are v-prefixed
+          if ! git ls-remote --exit-code --tags "https://github.com/${GITHUB_REPOSITORY}.git" "refs/tags/${tag}" >/dev/null; then
+            echo "::error::Tag ${tag} does not exist in this repository."; exit 1
+          fi
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ steps.pick.outputs.tag }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=semver,pattern={{version}},value=${{ steps.pick.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.pick.outputs.tag }}
+
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ steps.pick.outputs.version }}
+          # Plain Docker (schema 2) manifest so Unraid's "check for updates" can read it.
+          provenance: false
