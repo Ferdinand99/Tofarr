@@ -16,11 +16,15 @@
 <p><a class="btn sm {{ '' if only else 'primary' }}" href="/discover/shelf?type={{ type|urlencode }}&amp;arg={{ arg|urlencode }}&amp;title={{ title|urlencode }}">All titles</a>
    <a class="btn sm {{ 'primary' if only }}" href="/discover/shelf?type={{ type|urlencode }}&amp;arg={{ arg|urlencode }}&amp;title={{ title|urlencode }}&amp;only=1">Only in my library</a></p>
 <div class="grid">
-  {% for i in items %}
+  {% for i in items %}{% set label = (seerr_status or {}).get(i.tmdb_id ~ '-' ~ i.media_type) %}
   <div class="poster {{ '' if i.in_library else 'dim' }}">
     {% if i.poster %}<img loading="lazy" src="{{ poster_src(i.poster) }}" alt="">{% else %}<div class="noimg">{{ i.title }}</div>{% endif %}
     {% if i.in_library %}<span class="badge">In library</span>{% endif %}
     <span class="cap">{{ i.title }}{% if i.year %} <span class="mut">{{ i.year }}</span>{% endif %}</span>
+    {% if seerr_on and not i.in_library %}
+      {% if label %}<span class="pill on">{{ label }}</span>
+      {% else %}<button class="sm" data-request data-id="{{ i.tmdb_id }}" data-type="{{ i.media_type }}">Request</button>{% endif %}
+    {% endif %}
   </div>
   {% else %}<p class="mut">Nothing to show.</p>{% endfor %}
 </div>

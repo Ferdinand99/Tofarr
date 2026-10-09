@@ -2,9 +2,10 @@ import re
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from app.discover.service import CATALOG, DISCOVERABLE, TITLES, cfg_for, load_shelf
+from app.seerr import SeerrClient, SeerrError
 from app.sources import SOURCE_TYPES, get_source
 from app.sources.tmdb import search_collections
 from app.sources.trakt import trending_lists
@@ -55,9 +56,23 @@ def _values_from_def(d: dict) -> dict:
             "trakt_slug": c.get("slug", ""), "imdb_list": c.get("list", ""), "interval_minutes": d["interval_minutes"],
             "prune": d["prune"], "enabled": d["enabled"]}
 
-def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -> FastAPI:
+def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, seerr_factory=None) -> FastAPI:
     app = FastAPI(title="Tofa Collection Creator")
     probe_factory = probe_factory or tofa_factory
+    get_seerr = seerr_factory or (lambda: SeerrClient(settings.seerr_url, settings.seerr_api_key))
+
+    def seerr_on() -> bool:
+        return bool(settings.seerr_url and settings.seerr_api_key)
+
+    def seerr_status(items) -> dict:
+        """Seerr's label per title, keyed "<tmdb id>-<type>" so templates can look it up."""
+        if not seerr_on() or not items:
+            return {}
+        try:
+            found = get_seerr().statuses([(i.tmdb_id, i.media_type) for i in items])
+        except SeerrError:
+            return {}
+        return {f"{k[0]}-{k[1]}": v for k, v in found.items()}
     previewed: set[int] = set()  # definitions the user has seen a dry run for since startup
 
     @app.middleware("http")
@@ -92,9 +107,10 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
         return {"ok": True}
 
     def settings_page(request, status=200, message=None, error=None):
-        flags = {k: bool(getattr(settings, k)) for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id")}
-        return page(request, "settings.html", status, url=settings.tofa_url, is_set=flags,
-                    message=message, error=error)
+        flags = {k: bool(getattr(settings, k)) for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id",
+                                                           "seerr_api_key")}
+        return page(request, "settings.html", status, url=settings.tofa_url, seerr_url=settings.seerr_url or "",
+                    is_set=flags, message=message, error=error)
 
     @app.get("/settings")
     def settings_form(request: Request):
@@ -107,16 +123,27 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
         if not url.startswith(("http://", "https://")):
             return settings_page(request, 400, error="Tofa URL must start with http:// or https:// "
                                                      "(example: http://192.168.1.10:33333)")
-        values = {"tofa_url": url}
-        for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id"):
+        seerr_url = f.get("seerr_url", "").rstrip("/")
+        if seerr_url and not seerr_url.startswith(("http://", "https://")):
+            return settings_page(request, 400, error="Seerr URL must start with http:// or https://")
+        values = {"tofa_url": url, "seerr_url": seerr_url}  # an empty Seerr URL switches Seerr off
+        for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id", "seerr_api_key"):
             if f.get(k):  # blank keeps the stored value
                 values[k] = f[k]
         settings.save(**values)
+        notes, problems = [], []
         try:
-            info = probe_factory().system_info()
-            return settings_page(request, message=f"Saved. Connected to Tofa {info.get('version', '')}".strip())
+            notes.append(f"Connected to Tofa {probe_factory().system_info().get('version', '')}".strip())
         except TofaError as e:
-            return settings_page(request, error=f"Saved, but the connection test failed: {e}")
+            problems.append(f"Tofa: {e}")
+        if seerr_on():
+            try:
+                notes.append(get_seerr().test())
+            except SeerrError as e:
+                problems.append(f"Seerr: {e}")
+        if problems:
+            return settings_page(request, error="Saved, but the connection test failed: " + "; ".join(problems))
+        return settings_page(request, message="Saved. " + ". ".join(notes))
 
     @app.get("/")
     def index(request: Request):
@@ -196,7 +223,8 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
                         error=str(e))
         items = [i for i in view.items if i.in_library] if only else view.items
         return page(request, "shelf.html", type=type, arg=arg, title=shown, view=view, items=items, only=only,
-                    back=back, error=None)
+                    back=back, error=None, seerr_on=seerr_on(),
+                    seerr_status=seerr_status([i for i in items if not i.in_library]))
 
     @app.post("/discover/create")
     async def discover_create(request: Request):
@@ -224,6 +252,52 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
         except TofaError:
             return PlainTextResponse("Image unavailable", status_code=502)
         return Response(data, media_type=ctype, headers={"Cache-Control": "private, max-age=86400"})
+
+    # ---------- Seerr requests ----------
+
+    @app.post("/seerr/request")
+    async def seerr_request(request: Request):
+        f = dict((await request.form()).items())
+        media_type = f.get("media_type", "")
+        try:
+            tmdb_id = int(f.get("tmdb_id", ""))
+        except ValueError:
+            return JSONResponse({"ok": False, "label": "Bad title id"}, status_code=400)
+        if media_type not in ("movie", "tv") or not seerr_on():
+            return JSONResponse({"ok": False, "label": "Seerr is not configured" if not seerr_on() else "Bad media type"},
+                                status_code=400)
+        try:
+            outcome = get_seerr().request(tmdb_id, media_type)
+        except SeerrError as e:
+            return JSONResponse({"ok": False, "label": str(e)}, status_code=502)
+        return {"ok": True, "label": "Already requested" if outcome == "exists" else "Requested"}
+
+    @app.post("/{def_id}/request-missing")
+    async def request_missing(request: Request, def_id: int):
+        d = db.get_definition(def_id)
+        if not d:
+            return RedirectResponse("/", 303)
+        f = dict((await request.form()).items())
+        if not seerr_on() or f.get("confirm") != "yes":
+            msg = "Seerr is not configured" if not seerr_on() else "Tick the confirmation to request these titles"
+            return page(request, "preview.html", 400, d=d, r=None, error=msg, seerr_on=seerr_on(), seerr_status={})
+        r = run_definition(def_id, db=db, tofa=tofa_factory(), settings=settings, dry_run=True)
+        seerr = get_seerr()
+        report, limit = [], 100
+        for m in r.missing[:limit]:
+            try:
+                outcome = seerr.request(m.tmdb_id, m.media_type)
+                report.append((m, "Already requested" if outcome == "exists" else "Requested", True))
+            except SeerrError as e:
+                report.append((m, str(e), False))
+                if e.fatal:
+                    break
+        done = sum(1 for _, _, ok in report if ok)
+        summary = f"Requested {done} of {len(r.missing)} missing titles"
+        if len(r.missing) > limit:
+            summary += f" (at most {limit} per click, click again for the rest)"
+        return page(request, "preview.html", d=d, r=r, seerr_on=True, seerr_status={}, report=report,
+                    report_summary=summary)
 
     @app.get("/{def_id}/edit")
     def edit_form(request: Request, def_id: int):
@@ -261,7 +335,8 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
         r = run_definition(def_id, db=db, tofa=tofa_factory(), settings=settings, dry_run=True)
         if r.status == "preview":
             previewed.add(def_id)
-        return page(request, "preview.html", d=db.get_definition(def_id), r=r)
+        return page(request, "preview.html", d=db.get_definition(def_id), r=r, seerr_on=seerr_on(),
+                    seerr_status=seerr_status(r.missing))
 
     @app.post("/{def_id}/run")
     def run(def_id: int):

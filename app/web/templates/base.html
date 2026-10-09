@@ -69,6 +69,7 @@ td .name{font-weight:600;color:var(--fg)}
 ul.list{list-style:none;margin:0;padding:0}
 ul.list li{padding:8px 16px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:baseline}
 ul.list li:last-child{border-bottom:0}
+ul.list li .req{margin-left:auto}
 
 /* forms */
 .field{display:grid;grid-template-columns:220px 1fr;gap:6px 20px;padding:12px 16px;border-bottom:1px solid var(--line);align-items:start}
@@ -129,6 +130,14 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 document.querySelectorAll('time[datetime]').forEach(function(t){
   var d=new Date(t.getAttribute('datetime'));
   if(!isNaN(d)) t.textContent=d.toLocaleString([], {dateStyle:'medium', timeStyle:'short'});
+});
+document.addEventListener('click', function(e){
+  var b=e.target.closest('[data-request]'); if(!b) return;
+  e.preventDefault(); b.disabled=true; b.textContent='Requesting...';
+  var fd=new FormData(); fd.append('tmdb_id', b.dataset.id); fd.append('media_type', b.dataset.type);
+  fetch('/seerr/request', {method:'POST', body:fd}).then(function(r){return r.json()}).then(function(j){
+    b.textContent=j.label; if(j.ok){b.classList.remove('primary')} else {b.disabled=false; b.classList.add('danger')}
+  }).catch(function(){b.disabled=false; b.textContent='Failed, try again'});
 });
 document.querySelectorAll('form[data-busy]').forEach(function(f){
   f.addEventListener('submit', function(){

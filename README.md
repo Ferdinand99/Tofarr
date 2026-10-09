@@ -19,9 +19,13 @@ Open **Settings** in the web UI and enter the Tofa URL, admin API key and option
 | `TOFA_API_KEY` | no (or set in UI) | Admin key from Tofa Server > Settings > API keys |
 | `TMDB_API_KEY` | for TMDB sources | Free at themoviedb.org/settings/api |
 | `TRAKT_CLIENT_ID` | for Trakt sources | trakt.tv/oauth/applications |
+| `SEERR_URL` / `SEERR_API_KEY` | no (or set in UI) | Seerr, to request titles you do not have |
 | `TZ` | no | Default `Europe/Oslo` |
 
 Port `8080`, volume `/config`.
+
+## Discover
+The Discover page lists Tofa shelves and TMDB, Trakt and IMDb charts. Titles you have show an In library badge. One click creates a collection from a shelf, and with Seerr configured titles you lack get a Request button. Nothing is requested automatically.
 
 ## Behavior
 - Always preview first: dry run shows what would be added, removed and which titles are not in your library.

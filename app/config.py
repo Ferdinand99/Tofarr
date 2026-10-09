@@ -9,6 +9,8 @@ class Settings:
     tmdb_api_key: str | None
     trakt_client_id: str | None
     config_dir: Path
+    seerr_url: str | None = None
+    seerr_api_key: str | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":  # noqa: D401
@@ -18,12 +20,14 @@ class Settings:
             tmdb_api_key=os.environ.get("TMDB_API_KEY") or None,
             trakt_client_id=os.environ.get("TRAKT_CLIENT_ID") or None,
             config_dir=Path(os.environ.get("CONFIG_DIR", "/config")),
+            seerr_url=(os.environ.get("SEERR_URL") or "").rstrip("/") or None,
+            seerr_api_key=os.environ.get("SEERR_API_KEY") or None,
         )
 
 
 class LiveSettings:
     """Settings saved in the web UI (stored in the DB) override the environment defaults."""
-    KEYS = ("tofa_url", "tofa_api_key", "tmdb_api_key", "trakt_client_id")
+    KEYS = ("tofa_url", "tofa_api_key", "tmdb_api_key", "trakt_client_id", "seerr_url", "seerr_api_key")
 
     def __init__(self, env: Settings, db):
         self._env, self._db = env, db
@@ -46,6 +50,14 @@ class LiveSettings:
     @property
     def trakt_client_id(self):
         return self._get("trakt_client_id")
+
+    @property
+    def seerr_url(self):
+        return (self._get("seerr_url") or "").rstrip("/") or None
+
+    @property
+    def seerr_api_key(self):
+        return self._get("seerr_api_key")
 
     @property
     def config_dir(self):

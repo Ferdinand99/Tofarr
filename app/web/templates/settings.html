@@ -19,6 +19,13 @@
   <div class="field"><label for="r">Trakt client ID</label>
     <input id="r" type="password" name="trakt_client_id" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if is_set.trakt_client_id else 'Needed for Trakt lists' }}">
     <div class="hint">Create an app at trakt.tv/oauth/applications.</div></div>
+  <h2 style="border-top:1px solid var(--line)">Seerr (optional)</h2>
+  <div class="field"><label for="su">URL</label>
+    <input id="su" name="seerr_url" value="{{ seerr_url }}" placeholder="http://192.168.1.10:5055">
+    <div class="hint">Lets you request titles you do not have. Leave empty to turn it off.</div></div>
+  <div class="field"><label for="sk">API key</label>
+    <input id="sk" type="password" name="seerr_api_key" autocomplete="off" placeholder="{{ 'Saved. Leave blank to keep it.' if is_set.seerr_api_key else 'Seerr, Settings, General, API key' }}">
+    <div class="hint">Requests are made as the user that owns this key.</div></div>
   <div class="foot"><a class="btn" href="/">Back</a><button class="primary">Save and test connection</button></div>
 </form>
 <p class="mut">Values saved here override the container environment variables.</p>
