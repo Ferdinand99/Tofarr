@@ -29,4 +29,23 @@
   <div class="foot"><a class="btn" href="/">Back</a><button class="primary">Save and test connection</button></div>
 </form>
 <p class="mut">Values saved here override the container environment variables.</p>
+{% if auth_on %}
+<div class="panel">
+  <h2>Security</h2>
+  <p class="pad mut" style="padding-bottom:0">Signed in as <b>{{ auth_user }}</b>.</p>
+  <form method="post" action="/settings/security">
+    <div class="field"><label>Local network</label><div class="check"><input type="checkbox" name="local_bypass" id="lb" {{ 'checked' if local_bypass }}>
+      <label for="lb" style="font-weight:400;padding:0">Skip login on the local network</label></div>
+      <div class="hint">Devices on a private address (192.168.x.x, 10.x.x.x) open Tofarr without signing in. It does not apply to requests that come through a reverse proxy.</div></div>
+    <div class="foot"><button>Save</button></div>
+  </form>
+  <form method="post" action="/settings/password" style="border-top:1px solid var(--line)">
+    <div class="field"><label for="cp">Current password</label><input id="cp" type="password" name="current" autocomplete="current-password" required></div>
+    <div class="field"><label for="np">New password</label><input id="np" type="password" name="password" autocomplete="new-password" required>
+      <div class="hint">At least 8 characters. Other devices must sign in again after a change.</div></div>
+    <div class="field"><label for="nc">Repeat new password</label><input id="nc" type="password" name="confirm" autocomplete="new-password" required></div>
+    <div class="foot"><button class="primary">Change password</button></div>
+  </form>
+</div>
+{% endif %}
 {% endblock %}

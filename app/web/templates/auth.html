@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% set bare = true %}
+{% block title %}{{ 'Create your login' if mode == 'setup' else 'Sign in' }}{% endblock %}
+{% block body %}
+<div class="panel">
+  <h2>{{ 'Create your login' if mode == 'setup' else 'Sign in to Tofarr' }}</h2>
+  {% if mode == 'setup' %}<p class="pad mut" style="padding-bottom:0">Choose a username and password. You will use them every time you open Tofarr.</p>{% endif %}
+  {% if error %}<div class="notice bad" style="margin:12px 16px 0">{{ error }}</div>{% endif %}
+  <form method="post" action="{{ '/setup' if mode == 'setup' else '/login' }}">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <div class="field stack"><label for="un">Username</label>
+      <input id="un" name="username" value="{{ username or '' }}" autocomplete="username" required autofocus></div>
+    <div class="field stack"><label for="pw">Password</label>
+      <input id="pw" type="password" name="password" autocomplete="{{ 'new-password' if mode == 'setup' else 'current-password' }}" required></div>
+    {% if mode == 'setup' %}
+    <div class="field stack"><label for="pc">Repeat password</label>
+      <input id="pc" type="password" name="confirm" autocomplete="new-password" required>
+      <div class="hint">At least 8 characters.</div></div>
+    {% endif %}
+    <div class="foot"><button class="primary">{{ 'Create login' if mode == 'setup' else 'Sign in' }}</button></div>
+  </form>
+</div>
+{% endblock %}

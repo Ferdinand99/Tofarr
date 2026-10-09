@@ -5,6 +5,7 @@ from urllib.parse import quote, urlsplit
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from app.auth import COOKIE, SESSION_SECONDS, AuthStore, LoginLimiter, is_local_request
 from app.discover.service import CATALOG, DISCOVERABLE, TITLES, cfg_for, load_shelf
 from app.seerr import SeerrClient, SeerrError
 from app.sources import SOURCE_TYPES, get_source
@@ -58,7 +59,8 @@ def _values_from_def(d: dict) -> dict:
             "trakt_slug": c.get("slug", ""), "imdb_list": c.get("list", ""), "interval_minutes": d["interval_minutes"],
             "prune": d["prune"], "enabled": d["enabled"]}
 
-def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, seerr_factory=None) -> FastAPI:
+def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, seerr_factory=None,
+               require_auth=False) -> FastAPI:
     app = FastAPI(title="Tofarr")
     probe_factory = probe_factory or tofa_factory
     get_seerr = seerr_factory or (lambda: SeerrClient(settings.seerr_url, settings.seerr_api_key))
@@ -104,6 +106,97 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, s
             return values, None, str(e)
         return values, (cfg, minutes), None
 
+    # ---------- Login ----------
+
+    auth = AuthStore(db)
+    limiter = LoginLimiter()
+    JSON_ONLY = ("/seerr/", "/discover/img")
+
+    def safe_next(target: str) -> str:
+        """Only paths on this site; never an address that could send someone elsewhere."""
+        return target if target.startswith("/") and not target.startswith("//") and "\\" not in target else "/"
+
+    def start_session(response, request, username: str):
+        proto = request.headers.get("x-forwarded-proto", "").split(",")[0].strip() or request.url.scheme
+        response.set_cookie(COOKIE, auth.make_token(username), max_age=SESSION_SECONDS, httponly=True,
+                            samesite="lax", secure=proto == "https")
+        return response
+
+    def client_key(request) -> str:
+        return getattr(request.client, "host", "") or "unknown"
+
+    @app.middleware("http")
+    async def login_required(request: Request, call_next):
+        if not require_auth:
+            return await call_next(request)
+        path = request.url.path
+        if path == "/health":
+            return await call_next(request)
+        if not auth.has_user():  # nothing is reachable until the first account exists
+            if path == "/setup":
+                return await call_next(request)
+            if path.startswith(JSON_ONLY):
+                return JSONResponse({"ok": False, "label": "Create a login first"}, status_code=401)
+            return RedirectResponse("/setup", 303)
+        user = auth.read_token(request.cookies.get(COOKIE, ""))
+        if user or path in ("/login", "/setup") or (auth.local_bypass() and is_local_request(request)):
+            request.state.user = user
+            return await call_next(request)
+        if path.startswith(JSON_ONLY):
+            return JSONResponse({"ok": False, "label": "Please sign in again"}, status_code=401)
+        target = path + ("?" + request.url.query if request.url.query else "")
+        return RedirectResponse("/login?next=" + quote(target, safe="/"), 303) if request.method == "GET" \
+            else RedirectResponse("/login", 303)
+
+    def auth_page(request, mode, status=200, error=None, username="", next_url=""):
+        return page(request, "auth.html", status, mode=mode, error=error, username=username, next=next_url)
+
+    @app.get("/setup")
+    def setup_form(request: Request):
+        return RedirectResponse("/", 303) if auth.has_user() else auth_page(request, "setup")
+
+    @app.post("/setup")
+    async def setup_save(request: Request):
+        if auth.has_user():
+            return RedirectResponse("/", 303)
+        f = {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+        username, password = f.get("username", "").strip(), f.get("password", "")
+        problem = None
+        if not 3 <= len(username) <= 32:
+            problem = "The username must be 3 to 32 characters."
+        elif len(password) < 8:
+            problem = "The password must be at least 8 characters."
+        elif password != f.get("confirm", ""):
+            problem = "The two passwords are not the same."
+        if problem:
+            return auth_page(request, "setup", 400, problem, username)
+        auth.create_user(username, password)
+        return start_session(RedirectResponse("/", 303), request, username)
+
+    @app.get("/login")
+    def login_form(request: Request, next: str = "/"):
+        if auth.read_token(request.cookies.get(COOKIE, "")):
+            return RedirectResponse(safe_next(next), 303)
+        return auth_page(request, "login", next_url=safe_next(next))
+
+    @app.post("/login")
+    async def login_submit(request: Request):
+        f = {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+        username, key, nxt = f.get("username", ""), client_key(request), safe_next(f.get("next", "/"))
+        if limiter.blocked(key):
+            return auth_page(request, "login", 429, "Too many failed attempts. Try again in a few minutes.", username, nxt)
+        if not auth.check(username, f.get("password", "")):
+            limiter.fail(key)
+            return auth_page(request, "login", 401, "Wrong username or password.", username, nxt)
+        limiter.reset(key)
+        return start_session(RedirectResponse(nxt, 303), request, username)
+
+    @app.post("/logout")
+    def logout():
+        response = RedirectResponse("/login", 303)
+        response.delete_cookie(COOKIE)
+        return response
+
     @app.get("/health")
     def health():
         return {"ok": True}
@@ -112,7 +205,8 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, s
         flags = {k: bool(getattr(settings, k)) for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id",
                                                            "seerr_api_key")}
         return page(request, "settings.html", status, url=settings.tofa_url, seerr_url=settings.seerr_url or "",
-                    is_set=flags, message=message, error=error)
+                    is_set=flags, message=message, error=error, auth_on=require_auth and auth.has_user(),
+                    auth_user=auth.username(), local_bypass=auth.local_bypass())
 
     @app.get("/settings")
     def settings_form(request: Request):
@@ -146,6 +240,27 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, s
         if problems:
             return settings_page(request, error="Saved, but the connection test failed: " + "; ".join(problems))
         return settings_page(request, message="Saved. " + ". ".join(notes))
+
+    @app.post("/settings/security")
+    async def security_save(request: Request):
+        f = dict((await request.form()).items())
+        auth.set_local_bypass("local_bypass" in f)
+        return settings_page(request, message="Security settings saved.")
+
+    @app.post("/settings/password")
+    async def password_change(request: Request):
+        f = {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+        user = auth.username()
+        if not user or not auth.check(user, f.get("current", "")):
+            return settings_page(request, 400, error="The current password is not right.")
+        if len(f.get("password", "")) < 8:
+            return settings_page(request, 400, error="The new password must be at least 8 characters.")
+        if f.get("password") != f.get("confirm"):
+            return settings_page(request, 400, error="The two new passwords are not the same.")
+        auth.set_password(f["password"])
+        # the new secret ends every other session; keep this browser signed in
+        return start_session(settings_page(request, message="Password changed. Other devices must sign in again."),
+                             request, user)
 
     @app.get("/")
     def index(request: Request):

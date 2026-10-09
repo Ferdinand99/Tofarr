@@ -23,6 +23,9 @@ a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
 .side{width:220px;flex:none;background:var(--side);color:var(--side-fg);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
 .brand{padding:18px 20px;font-size:16px;font-weight:700;color:#fff;letter-spacing:.2px;border-bottom:1px solid #ffffff14}
 .brand small{display:block;font-size:11px;font-weight:400;color:var(--side-fg);margin-top:2px}
+.linklike{background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font-size:12px}
+.authbox{max-width:380px;margin:10vh auto 0;width:100%}
+.field.stack{grid-template-columns:1fr}
 .ver{margin-top:auto;padding:12px 20px;font-size:12px;opacity:.65}
 .nav{padding:10px 0;display:flex;flex-direction:column}
 .nav a{padding:10px 20px;color:var(--side-fg);border-left:3px solid transparent}
@@ -115,6 +118,7 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
   th,td{padding:8px 10px}
 }
 </style></head><body>
+{% if not bare %}
 <aside class="side">
   <div class="brand">Tofarr<small>Collections for Tofa</small></div>
   <nav class="nav">
@@ -123,12 +127,16 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
     <a href="/new" class="{{ 'on' if request.url.path == '/new' }}">Add new</a>
     <a href="/settings" class="{{ 'on' if request.url.path == '/settings' }}">Settings</a>
   </nav>
-  <div class="ver">Version <span>{{ app_version() }}</span></div>
+  <div class="ver">Version <span>{{ app_version() }}</span>
+    {% if request.state.user %}<form method="post" action="/logout" class="inline"> · <button class="linklike">Sign out</button></form>{% endif %}</div>
 </aside>
 <div class="main">
   <header class="bar"><h1>{% block heading %}Collections{% endblock %}</h1>{% block toolbar %}{% endblock %}</header>
   <main class="content">{% block body %}{% endblock %}</main>
 </div>
+{% else %}
+<main class="content authbox">{{ self.body() }}</main>
+{% endif %}
 <script>
 document.querySelectorAll('time[datetime]').forEach(function(t){
   var d=new Date(t.getAttribute('datetime'));

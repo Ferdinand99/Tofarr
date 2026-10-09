@@ -29,6 +29,19 @@ Port `8080`, volume `/config`.
 ## Discover
 The Discover page lists Tofa shelves and TMDB, Trakt and IMDb charts. Titles you have show an In library badge. One click creates a collection from a shelf, and with Seerr configured titles you lack get a Request button. Nothing is requested automatically.
 
+## Security
+Tofarr asks you to create a username and password the first time you open it. After that every page needs a login.
+
+- Passwords are stored only as a salted scrypt hash. The login is a signed cookie that lasts 30 days.
+  Five wrong passwords lock the login form for 15 minutes.
+- Under **Settings, Security** you can change the password. Doing so signs out every other device.
+- **Skip login on the local network** (off by default) lets devices on a private address (192.168.x.x, 10.x.x.x) in
+  without signing in. It never applies to requests that come through a reverse proxy.
+- `/health` stays open so the Docker health check works.
+- **Forgot the password?** Start the container once with the variable `AUTH_RESET=true`. It removes the login, and the next visit shows the
+  create-login page again. Remove the variable afterwards, or the login is removed on every start.
+- If you put Tofarr on the internet, use a reverse proxy with HTTPS. The session cookie is marked Secure when the proxy sends `X-Forwarded-Proto: https`.
+
 ## Behavior
 - Always preview first: dry run shows what would be added, removed and which titles are not in your library.
 - Titles missing from the Tofa library are reported, not errors. They are added on a later run once scanned.
