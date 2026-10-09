@@ -5,7 +5,7 @@ from app.sources.base import SourceError
 
 GRAPHQL = "https://api.graphql.imdb.com/"
 TMDB = "https://api.themoviedb.org/3"
-QUERY = """query($id: ID!, $after: String) { list(id: $id) { items(first: 250, after: $after) {
+QUERY = """query($id: ID!, $after: ID) { list(id: $id) { items(first: 250, after: $after) {
   pageInfo { hasNextPage endCursor }
   edges { node { item { ... on Title { id titleText { text } titleType { id } } } } } } } }"""
 TV_TYPES = {"tvSeries", "tvMiniSeries"}
@@ -44,7 +44,12 @@ class ImdbListSource:
             except httpx.TransportError as e:
                 raise SourceError(f"Cannot reach IMDb: {e}")
             if r.status_code >= 400:
-                raise SourceError(f"IMDb returned {r.status_code}. Its unofficial list API may have changed.")
+                try:
+                    detail = "; ".join(e["message"] for e in r.json().get("errors", []))[:200]
+                except Exception:
+                    detail = ""
+                raise SourceError(f"IMDb returned {r.status_code}"
+                                  f"{': ' + detail if detail else ''}. Its unofficial list API may have changed.")
             lst = (r.json().get("data") or {}).get("list")
             if not lst:
                 raise SourceError(f"IMDb list {self.list_id} was not found or is private.")

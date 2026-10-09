@@ -73,3 +73,11 @@ def test_form_saves_an_imdb_definition(tmp_path):
     d = db.list_definitions()[0]
     assert d["source_type"] == "imdb_list" and d["source_config"] == {"list": "https://www.imdb.com/list/ls029032797/"}
     assert "ls029032797" in c.get(f"/{d['id']}/edit").text
+
+
+@respx.mock
+def test_imdb_error_text_is_shown_and_cursor_variable_is_an_id():
+    route = respx.post(GQL).mock(return_value=httpx.Response(400, json={"errors": [{"message": "bad variable"}]}))
+    with pytest.raises(SourceError, match="bad variable"):
+        get_source("imdb_list", {"list": "ls029032797"}, st()).fetch()
+    assert "$after: ID" in json.loads(route.calls[0].request.content)["query"]
