@@ -77,6 +77,22 @@ class TofaClient:
                 return series
             page += 1
 
+    def discovery_shelves(self) -> list[dict]:
+        data = self._ok(self._req("GET", "/discovery/page")).json()
+        return [{"key": sh["key"], "title": sh.get("title", sh["key"]), "subtitle": sh.get("subtitle", ""),
+                 "kind": sh.get("kind", ""), "count": len(sh.get("items", [])), "missing": sh.get("missing_count", 0)}
+                for sh in data.get("shelves", [])]
+
+    def discovery_shelf(self, key: str) -> list[dict]:
+        return self._ok(self._req("GET", f"/discovery/shelf/{key}")).json().get("items", [])
+
+    def fetch_image(self, path: str) -> tuple[bytes, str]:
+        """Download a library image (a relative path such as images/posters/x.jpg) with an image token."""
+        token = self._ok(self._req("GET", "/auth/image-token")).json()["token"]
+        base = str(self._http.base_url).rsplit("/api/v1", 1)[0]
+        r = self._ok(self._http.get(f"{base}/{path.lstrip('/')}", params={"st": token}))
+        return r.content, r.headers.get("content-type", "image/jpeg")
+
     def create_collection(self, name: str, overview: str | None) -> str:
         r = self._ok(self._req("POST", "/collections/custom", json={"name": name, "overview": overview}))
         return r.json()["id"]

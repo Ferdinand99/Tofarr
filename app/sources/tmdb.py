@@ -3,6 +3,18 @@ from app.models import SourceItem
 from app.sources.base import SourceError
 
 API = "https://api.themoviedb.org/3"
+IMG = "https://image.tmdb.org/t/p/w342"
+CHART_PATHS = {"trending/movie/week", "trending/tv/week", "trending/movie/day", "trending/tv/day",
+               "movie/popular", "movie/top_rated", "movie/upcoming", "movie/now_playing",
+               "tv/popular", "tv/top_rated", "tv/on_the_air", "tv/airing_today"}
+
+
+def _item(r: dict, kind: str) -> "SourceItem":
+    date = r.get("release_date") or r.get("first_air_date") or ""
+    return SourceItem(r["id"], kind, r.get("title") or r.get("name", ""),
+                      int(date[:4]) if date[:4].isdigit() else None,
+                      IMG + r["poster_path"] if r.get("poster_path") else "")
+
 
 class _Tmdb:
     def __init__(self, key: str, transport=None):
@@ -23,7 +35,7 @@ class TmdbCollectionSource(_Tmdb):
     def fetch(self) -> list[SourceItem]:
         parts = self.get(f"/collection/{self.id}")["parts"]
         parts.sort(key=lambda p: p.get("release_date") or "9999")
-        return [SourceItem(p["id"], "movie", p.get("title", "")) for p in parts]
+        return [_item(p, "movie") for p in parts]
 
 class TmdbListSource(_Tmdb):
     def __init__(self, key, cfg, transport=None):
@@ -34,8 +46,7 @@ class TmdbListSource(_Tmdb):
         page = 1
         while True:
             data = self.get(f"/list/{self.id}", page=page)
-            out += [SourceItem(i["id"], i.get("media_type", "movie"), i.get("title") or i.get("name", ""))
-                    for i in data["items"]]
+            out += [_item(i, i.get("media_type", "movie")) for i in data["items"]]
             if page >= data.get("total_pages", 1):
                 return out
             page += 1
@@ -51,7 +62,31 @@ class TmdbDiscoverSource(_Tmdb):
         out: list[SourceItem] = []
         for page in range(1, self.max_pages + 1):
             data = self.get(f"/discover/{self.mt}", page=page, **self.params)
-            out += [SourceItem(r["id"], self.mt, r.get("title") or r.get("name", "")) for r in data["results"]]
+            out += [_item(r, self.mt) for r in data["results"]]
             if page >= data.get("total_pages", 1):
                 break
         return out
+
+
+class TmdbChartSource(_Tmdb):
+    def __init__(self, key, cfg, transport=None):
+        super().__init__(key, transport)
+        self.path = cfg.get("path", "")
+        if self.path not in CHART_PATHS:
+            raise SourceError(f"Unknown TMDB chart: {self.path}")
+        self.kind = "tv" if "tv" in self.path.split("/")[:2] else "movie"
+
+    def fetch(self) -> list[SourceItem]:
+        out: list[SourceItem] = []
+        for page in (1, 2):
+            data = self.get(f"/{self.path}", page=page)
+            out += [_item(r, self.kind) for r in data["results"]]
+            if page >= data.get("total_pages", 1):
+                break
+        return out
+
+
+def search_collections(key: str, query: str, transport=None) -> list[dict]:
+    data = _Tmdb(key, transport).get("/search/collection", query=query)
+    return [{"id": r["id"], "name": r.get("name", ""),
+             "poster": IMG + r["poster_path"] if r.get("poster_path") else ""} for r in data["results"]]

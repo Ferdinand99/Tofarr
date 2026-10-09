@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Discover{% endblock %}
+{% block heading %}Discover{% endblock %}
+{% block body %}
+<nav class="tabs">
+  {% for key, label in (('tofa', 'Tofa'), ('trakt', 'Trakt'), ('tmdb', 'TMDB'), ('imdb', 'IMDb')) %}
+  <a href="/discover?source={{ key }}" class="{{ 'on' if source == key }}">{{ label }}</a>
+  {% endfor %}
+</nav>
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if need %}<div class="notice warn">{{ need }} <a href="/settings">Open settings</a></div>{% endif %}
+
+{% if source == 'tofa' %}
+  {% set labels = {'now': 'Right now', 'availability': 'Release windows', 'standard': 'Best of', 'decade': 'By decade', 'genre': 'By genre', 'house': 'Kids and more'} %}
+  {% for kind, group in groups %}
+  <h3 class="sect">{{ labels.get(kind, kind|capitalize) }}</h3>
+  <div class="shelves">
+    {% for sh in group %}
+    <a class="shelf-card" href="/discover/shelf?type=tofa_shelf&amp;arg={{ sh.key|urlencode }}&amp;title={{ sh.title|urlencode }}">
+      <b>{{ sh.title }}</b><span class="mut">{{ sh.subtitle }}</span>
+      <span class="pill {{ 'on' if sh.count - sh.missing > 0 }}">{{ sh.count - sh.missing }} of {{ sh.count }} in your library</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% if source in ('trakt', 'tmdb', 'imdb') and not need %}
+  <h3 class="sect">Charts</h3>
+  <div class="shelves">
+    {% for sh in shelves %}
+    <a class="shelf-card" href="/discover/shelf?type={{ sh.type }}&amp;arg={{ sh.arg|urlencode }}&amp;title={{ sh.title|urlencode }}">
+      <b>{{ sh.title }}</b><span class="mut">{{ sh.subtitle }}</span>
+    </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if source == 'trakt' and lists %}
+  <h3 class="sect">Popular lists on Trakt</h3>
+  <div class="shelves">
+    {% for l in lists %}
+    <a class="shelf-card" href="/discover/shelf?type=trakt_list&amp;arg={{ (l.user ~ '/' ~ l.slug)|urlencode }}&amp;title={{ l.name|urlencode }}">
+      <b>{{ l.name }}</b><span class="mut">{{ l.count }} titles, {{ l.likes }} likes, by {{ l.user }}</span>
+    </a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if source == 'tmdb' and not need %}
+  <h3 class="sect">Find a collection</h3>
+  <form method="get" class="searchbar"><input type="hidden" name="source" value="tmdb">
+    <input name="q" value="{{ q }}" placeholder="For example Marvel, Star Wars, John Wick"><button class="primary">Search</button></form>
+  {% if q and not found %}<p class="mut">No TMDB collections match "{{ q }}".</p>{% endif %}
+  <div class="grid">
+    {% for c in found %}
+    <a class="poster" href="/discover/shelf?type=tmdb_collection&amp;arg={{ c.id }}&amp;title={{ c.name|urlencode }}">
+      {% if c.poster %}<img loading="lazy" src="{{ c.poster }}" alt="">{% else %}<div class="noimg">{{ c.name }}</div>{% endif %}
+      <span class="cap">{{ c.name }}</span></a>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% if source == 'imdb' and not need %}
+  <h3 class="sect">Open an IMDb list</h3>
+  <form method="get" action="/discover/shelf" class="searchbar"><input type="hidden" name="type" value="imdb_list">
+    <input name="arg" value="{{ imdb_ref }}" placeholder="https://www.imdb.com/list/ls029032797/" required><button class="primary">Open</button></form>
+  <p class="mut">IMDb has no official list API. This uses the unofficial IMDb endpoint for personal use, and it can stop working.</p>
+{% endif %}
+{% endblock %}

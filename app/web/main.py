@@ -1,14 +1,29 @@
+import re
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse, RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from app.discover.service import CATALOG, DISCOVERABLE, TITLES, cfg_for, load_shelf
 from app.sources import SOURCE_TYPES, get_source
+from app.sources.tmdb import search_collections
+from app.sources.trakt import trending_lists
 from app.sources.base import SourceError
 from app.sync import run_definition
 from app.tofa.client import TofaError
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
+IMAGE_PATH = re.compile(r"images/[A-Za-z0-9_./-]+")
+
+
+def poster_src(p: str) -> str:
+    """Absolute image URLs load directly; Tofa library images are relative and go through our proxy."""
+    if not p:
+        return ""
+    return p if p.startswith("http") else "/discover/img?path=" + quote(p)
+
+
+TEMPLATES.env.globals["poster_src"] = poster_src
 
 def _cfg_from_form(f: dict) -> dict:
     t = f["source_type"]
@@ -131,6 +146,84 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
                                  cfg, minutes, values["prune"])
         db.update_definition(i, enabled=False)  # enable only after a preview, via Edit
         return RedirectResponse(f"/{i}/preview", 303)
+
+    # ---------- Discover ----------
+
+    def discover_page(request, source="tofa", status=200, error=None, q="", imdb_ref=""):
+        ctx = {"source": source, "error": error, "q": q, "groups": [], "lists": [], "found": [], "need": None,
+               "imdb_ref": imdb_ref}
+        try:
+            if source == "tofa":
+                if not settings.tofa_url:
+                    ctx["need"] = "Tofa is not configured yet. Open Settings first."
+                else:
+                    groups: dict[str, list] = {}
+                    for sh in tofa_factory().discovery_shelves():
+                        groups.setdefault(sh["kind"] or "other", []).append(sh)
+                    ctx["groups"] = list(groups.items())
+            elif source == "trakt":
+                if not settings.trakt_client_id:
+                    ctx["need"] = "Add a Trakt client ID in Settings to browse Trakt."
+                else:
+                    ctx["lists"] = trending_lists(settings.trakt_client_id, "popular")
+            elif source == "tmdb":
+                if not settings.tmdb_api_key:
+                    ctx["need"] = "Add a TMDB API key in Settings to browse TMDB."
+                elif q:
+                    ctx["found"] = search_collections(settings.tmdb_api_key, q)
+            elif source == "imdb":
+                if not settings.tmdb_api_key:
+                    ctx["need"] = "Add a TMDB API key in Settings. It is used to match IMDb titles."
+        except (SourceError, TofaError) as e:
+            ctx["error"] = str(e)
+        return page(request, "discover.html", status, shelves=CATALOG.get(source, []), **ctx)
+
+    @app.get("/discover")
+    def discover(request: Request, source: str = "tofa", q: str = ""):
+        return discover_page(request, source if source in ("tofa", "trakt", "tmdb", "imdb") else "tofa", q=q)
+
+    @app.get("/discover/shelf")
+    def discover_shelf(request: Request, type: str, arg: str, title: str = "", only: int = 0):
+        shown = title or TITLES.get((type, arg)) or arg
+        back = {"tofa_shelf": "tofa", "trakt_chart": "trakt", "trakt_list": "trakt", "imdb_chart": "imdb",
+                "imdb_list": "imdb"}.get(type, "tmdb")
+        if type not in DISCOVERABLE:
+            return discover_page(request, "tofa", 400, f"Unknown source type: {type}")
+        try:
+            view = load_shelf(type, arg, settings, tofa_factory())
+        except (SourceError, TofaError) as e:
+            return page(request, "shelf.html", 400, type=type, arg=arg, title=shown, view=None, only=0, back=back,
+                        error=str(e))
+        items = [i for i in view.items if i.in_library] if only else view.items
+        return page(request, "shelf.html", type=type, arg=arg, title=shown, view=view, items=items, only=only,
+                    back=back, error=None)
+
+    @app.post("/discover/create")
+    async def discover_create(request: Request):
+        f = dict((await request.form()).items())
+        type_, arg, name = f.get("type", ""), f.get("arg", ""), f.get("name", "").strip()
+        try:
+            if type_ not in DISCOVERABLE:
+                raise SourceError(f"Unknown source type: {type_}")
+            cfg = cfg_for(type_, arg)
+            get_source(type_, cfg, settings)
+            if not name:
+                raise SourceError("Give the collection a name")
+        except SourceError as e:
+            return discover_page(request, "tofa", 400, str(e))
+        i = db.create_definition(name, f"Created from Discover: {TITLES.get((type_, arg), arg)}", type_, cfg, 1440, True)
+        db.update_definition(i, enabled=False)  # enabled only after a preview, as for every new collection
+        return RedirectResponse(f"/{i}/preview", 303)
+
+    @app.get("/discover/img")
+    def discover_img(path: str):
+        if not IMAGE_PATH.fullmatch(path) or ".." in path:
+            return PlainTextResponse("Bad image path", status_code=400)
+        try:
+            data, ctype = tofa_factory().fetch_image(path)
+        except TofaError:
+            return PlainTextResponse("Image unavailable", status_code=502)
+        return Response(data, media_type=ctype, headers={"Cache-Control": "private, max-age=86400"})
 
     @app.get("/{def_id}/edit")
     def edit_form(request: Request, def_id: int):

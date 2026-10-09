@@ -81,6 +81,23 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
 .check input{width:auto}
 .foot{padding:12px 16px;display:flex;gap:10px;justify-content:flex-end;border-top:1px solid var(--line)}
 
+/* discover */
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px}
+.tabs a{padding:8px 16px;color:var(--mut);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs a.on{color:var(--fg);border-bottom-color:var(--acc);font-weight:600}.tabs a:hover{text-decoration:none;color:var(--fg)}
+.sect{margin:22px 0 10px;font-size:14px;color:var(--mut);font-weight:600}
+.shelves{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.shelf-card{display:flex;flex-direction:column;gap:4px;padding:12px 14px;background:var(--panel);border:1px solid var(--line);border-radius:4px;color:var(--fg)}
+.shelf-card:hover{border-color:var(--acc);text-decoration:none}.shelf-card .pill{align-self:flex-start;margin-top:4px}
+.searchbar,.makebar{display:flex;gap:8px;margin:8px 0 16px}.makebar{padding:14px 16px 8px;margin:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:16px 14px;margin-top:14px}
+.poster{position:relative;display:flex;flex-direction:column;gap:6px;color:var(--fg);font-size:13px}
+.poster img,.poster .noimg{width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:4px;background:var(--idle-bg);border:1px solid var(--line)}
+.poster .noimg{display:flex;align-items:center;justify-content:center;text-align:center;padding:8px;color:var(--mut)}
+.poster.dim img,.poster.dim .noimg{opacity:.45;filter:grayscale(.6)}
+.poster .badge{position:absolute;top:6px;left:6px;background:var(--ok-bg);color:var(--ok);font-size:11px;font-weight:600;padding:1px 7px;border-radius:9px}
+.poster .cap{line-height:1.3}a.poster:hover{text-decoration:none}a.poster:hover img{border-color:var(--acc)}
+
 /* mobile: sidebar becomes a top bar */
 @media(max-width:760px){
   body{flex-direction:column}
@@ -99,6 +116,7 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
   <div class="brand">Tofa Collections<small>Collection Creator</small></div>
   <nav class="nav">
     <a href="/" class="{{ 'on' if request.url.path in ('/',) or request.url.path.endswith(('/preview','/edit')) }}">Collections</a>
+    <a href="/discover" class="{{ 'on' if request.url.path.startswith('/discover') }}">Discover</a>
     <a href="/new" class="{{ 'on' if request.url.path == '/new' }}">Add new</a>
     <a href="/settings" class="{{ 'on' if request.url.path == '/settings' }}">Settings</a>
   </nav>

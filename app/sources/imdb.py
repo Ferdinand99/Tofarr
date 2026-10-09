@@ -5,9 +5,12 @@ from app.sources.base import SourceError
 
 GRAPHQL = "https://api.graphql.imdb.com/"
 TMDB = "https://api.themoviedb.org/3"
-QUERY = """query($id: ID!, $after: ID) { list(id: $id) { items(first: 250, after: $after) {
+TITLE = "id titleText { text } releaseYear { year } titleType { id } primaryImage { url }"
+LIST_QUERY = """query($id: ID!, $after: ID) { list(id: $id) { items(first: 250, after: $after) {
   pageInfo { hasNextPage endCursor }
-  edges { node { item { ... on Title { id titleText { text } titleType { id } } } } } } } }"""
+  edges { node { item { ... on Title { %s } } } } } } }""" % TITLE
+CHART_QUERY = "query { chartTitles(first: 100, chart: {chartType: %s}) { edges { node { " + TITLE + " } } } }"
+CHARTS = {"TOP_RATED_MOVIES", "TOP_RATED_TV_SHOWS", "MOST_POPULAR_MOVIES", "MOST_POPULAR_TV_SHOWS"}
 TV_TYPES = {"tvSeries", "tvMiniSeries"}
 _ID = re.compile(r"(ls\d+)")
 _FOUND: dict[str, tuple[int, str, str] | None] = {}  # tt id -> TMDB match; stable, so kept for the process
@@ -20,49 +23,42 @@ def list_id(ref: str) -> str:
     return m.group(1)
 
 
-class ImdbListSource:
-    """Reads a public IMDb list through IMDb's unofficial GraphQL endpoint and maps titles to TMDB ids.
+class _Imdb:
+    """Reads IMDb through its unofficial GraphQL endpoint and maps titles to TMDB ids.
 
-    IMDb has no public API for lists, so this can stop working without notice. IMDb allows this data
+    IMDb has no public API for this, so it can stop working without notice. IMDb allows this data
     for personal, non-commercial use only.
     """
 
-    def __init__(self, tmdb_key: str, cfg: dict, transport=None):
-        self.list_id = list_id(cfg.get("list", ""))
+    def __init__(self, tmdb_key: str, transport=None):
+        self.tmdb_key = tmdb_key
         self.http = httpx.Client(timeout=30, transport=transport, headers={
             "User-Agent": "Mozilla/5.0 (compatible; tofa-collection-creator)", "Content-Type": "application/json",
             "x-imdb-client-name": "imdb-web-next-localized", "Origin": "https://www.imdb.com",
             "Referer": "https://www.imdb.com/"})
-        self.tmdb_key = tmdb_key
 
-    def _titles(self) -> list[tuple[str, str, str]]:
-        out: list[tuple[str, str, str]] = []
-        after = None
-        while True:
+    def _post(self, payload: dict) -> dict:
+        try:
+            r = self.http.post(GRAPHQL, json=payload)
+        except httpx.TransportError as e:
+            raise SourceError(f"Cannot reach IMDb: {e}")
+        if r.status_code >= 400:
             try:
-                r = self.http.post(GRAPHQL, json={"query": QUERY, "variables": {"id": self.list_id, "after": after}})
-            except httpx.TransportError as e:
-                raise SourceError(f"Cannot reach IMDb: {e}")
-            if r.status_code >= 400:
-                try:
-                    detail = "; ".join(e["message"] for e in r.json().get("errors", []))[:200]
-                except Exception:
-                    detail = ""
-                raise SourceError(f"IMDb returned {r.status_code}"
-                                  f"{': ' + detail if detail else ''}. Its unofficial list API may have changed.")
-            lst = (r.json().get("data") or {}).get("list")
-            if not lst:
-                raise SourceError(f"IMDb list {self.list_id} was not found or is private.")
-            items = lst["items"]
-            for e in items["edges"]:
-                t = (e.get("node") or {}).get("item") or {}
-                if t.get("id"):
-                    out.append((t["id"], (t.get("titleType") or {}).get("id", ""),
-                                (t.get("titleText") or {}).get("text", "")))
-            page = items.get("pageInfo") or {}
-            if not page.get("hasNextPage"):
-                return out
-            after = page["endCursor"]
+                detail = "; ".join(e["message"] for e in r.json().get("errors", []))[:200]
+            except Exception:
+                detail = ""
+            raise SourceError(f"IMDb returned {r.status_code}"
+                              f"{': ' + detail if detail else ''}. Its unofficial API may have changed.")
+        return r.json()
+
+    @staticmethod
+    def _row(t: dict) -> dict | None:
+        if not t.get("id"):
+            return None
+        return {"tt": t["id"], "type": (t.get("titleType") or {}).get("id", ""),
+                "title": (t.get("titleText") or {}).get("text", ""),
+                "year": (t.get("releaseYear") or {}).get("year"),
+                "poster": (t.get("primaryImage") or {}).get("url", "")}
 
     def _tmdb(self, tt: str, imdb_type: str):
         if tt in _FOUND:
@@ -83,14 +79,54 @@ class ImdbListSource:
         _FOUND[tt] = found
         return found
 
-    def fetch(self) -> list[SourceItem]:
+    def _to_items(self, rows: list[dict]) -> list[SourceItem]:
         seen: set[str] = set()
         items: list[SourceItem] = []
-        for tt, imdb_type, imdb_title in self._titles():
-            if tt in seen:
+        for row in rows:
+            if row["tt"] in seen:
                 continue
-            seen.add(tt)
-            hit = self._tmdb(tt, imdb_type)
+            seen.add(row["tt"])
+            hit = self._tmdb(row["tt"], row["type"])
             if hit:
-                items.append(SourceItem(hit[0], hit[1], imdb_title or hit[2]))
+                items.append(SourceItem(hit[0], hit[1], row["title"] or hit[2], row["year"], row["poster"]))
         return items
+
+
+class ImdbListSource(_Imdb):
+    def __init__(self, tmdb_key: str, cfg: dict, transport=None):
+        super().__init__(tmdb_key, transport)
+        self.list_id = list_id(cfg.get("list", ""))
+
+    def _rows(self) -> list[dict]:
+        out: list[dict] = []
+        after = None
+        while True:
+            body = self._post({"query": LIST_QUERY, "variables": {"id": self.list_id, "after": after}})
+            lst = (body.get("data") or {}).get("list")
+            if not lst:
+                raise SourceError(f"IMDb list {self.list_id} was not found or is private.")
+            for e in lst["items"]["edges"]:
+                row = self._row((e.get("node") or {}).get("item") or {})
+                if row:
+                    out.append(row)
+            page = lst["items"].get("pageInfo") or {}
+            if not page.get("hasNextPage"):
+                return out
+            after = page["endCursor"]
+
+    def fetch(self) -> list[SourceItem]:
+        return self._to_items(self._rows())
+
+
+class ImdbChartSource(_Imdb):
+    def __init__(self, tmdb_key: str, cfg: dict, transport=None):
+        super().__init__(tmdb_key, transport)
+        self.chart = cfg.get("chart", "")
+        if self.chart not in CHARTS:
+            raise SourceError(f"Unknown IMDb chart: {self.chart}")
+
+    def fetch(self) -> list[SourceItem]:
+        body = self._post({"query": CHART_QUERY % self.chart})
+        edges = (((body.get("data") or {}).get("chartTitles")) or {}).get("edges") or []
+        rows = [r for r in (self._row(e.get("node") or {}) for e in edges) if r]
+        return self._to_items(rows)
