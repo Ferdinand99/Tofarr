@@ -1,0 +1,7 @@
+.venv
+.git
+.superpowers
+tests
+docs
+.cfg
+config
