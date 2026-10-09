@@ -44,22 +44,38 @@ class TofaClient:
         return self._ok(self._req("GET", "/system/info")).json()
 
     def resolve_tmdb(self, items: list[tuple[int, str]]) -> dict[tuple[int, str], str]:
+        """Map (tmdb_id, "movie"|"tv") to Tofa media ids; items not in the library are omitted.
+
+        Movies go through /media/by-tmdb/batch. That endpoint only matches files, so a whole
+        series never resolves there; series are looked up in the library listing instead.
+        """
         out: dict[tuple[int, str], str] = {}
-        for i in range(0, len(items), self.BATCH):
-            chunk = items[i:i + self.BATCH]
-            body = {"items": [{"tmdb_id": t, "media_type": m} for t, m in chunk]}
+        movies = [t for t, m in items if m != "tv"]
+        for i in range(0, len(movies), self.BATCH):
+            body = {"items": [{"tmdb_id": t, "media_type": "movie"} for t in movies[i:i + self.BATCH]]}
             data = self._ok(self._req("POST", "/media/by-tmdb/batch", json=body)).json()
-            asked: dict[int, list[str]] = {}
-            for t, m in chunk:
-                asked.setdefault(t, []).append(m)
             for res in data["results"]:
-                if not (res.get("media_id") and res.get("files")):
-                    continue
-                types = asked.get(res["tmdb_id"], [])
-                # trust our own requested type when unambiguous; Tofa may echo another label
-                mt = types[0] if len(types) == 1 else res["media_type"]
-                out[(res["tmdb_id"], mt)] = res["media_id"]
+                if res.get("media_id") and res.get("files"):
+                    out[(res["tmdb_id"], "movie")] = res["media_id"]
+        wanted = {t for t, m in items if m == "tv"}
+        if wanted:
+            for tmdb_id, media_id in self._library_series().items():
+                if tmdb_id in wanted:
+                    out[(tmdb_id, "tv")] = media_id
         return out
+
+    def _library_series(self) -> dict[int, str]:
+        series: dict[int, str] = {}
+        page = 1
+        while True:
+            r = self._ok(self._req("GET", "/media", params={"media_type": "tv", "per_page": 100, "page": page}))
+            data = r.json()
+            for it in data["items"]:
+                if it.get("tmdb_id") and it.get("available", True):
+                    series[it["tmdb_id"]] = it["id"]
+            if page >= data.get("total_pages", 1):
+                return series
+            page += 1
 
     def create_collection(self, name: str, overview: str | None) -> str:
         r = self._ok(self._req("POST", "/collections/custom", json={"name": name, "overview": overview}))

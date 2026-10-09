@@ -34,9 +34,26 @@ def test_old_untouched_seed_is_upgraded_but_edited_one_is_not(tmp_path):
 
 
 @respx.mock
-def test_resolve_matches_series_even_if_tofa_echoes_another_media_type():
-    respx.post("http://t/api/v1/media/by-tmdb/batch").mock(return_value=httpx.Response(200, json={"results": [
-        {"tmdb_id": 84958, "media_type": "other", "media_id": "loki", "files": [{}]},
+def test_series_are_resolved_from_the_library_listing_not_by_tmdb_batch():
+    batch = respx.post("http://t/api/v1/media/by-tmdb/batch").mock(return_value=httpx.Response(200, json={"results": [
         {"tmdb_id": 1726, "media_type": "movie", "media_id": "im", "files": [{}]}]}))
-    out = TofaClient("http://t", "k").resolve_tmdb([(84958, "tv"), (1726, "movie")])
-    assert out == {(84958, "tv"): "loki", (1726, "movie"): "im"}
+    def listing(request):
+        page = int(request.url.params["page"])
+        rows = {1: [{"id": "loki", "tmdb_id": 84958, "media_type": "tv", "available": True},
+                    {"id": "gone", "tmdb_id": 1, "media_type": "tv", "available": False}],
+                2: [{"id": "wanda", "tmdb_id": 85271, "media_type": "tv", "available": True}]}[page]
+        return httpx.Response(200, json={"items": rows, "page": page, "per_page": 2, "total": 3, "total_pages": 2})
+    respx.get("http://t/api/v1/media").mock(side_effect=listing)
+    out = TofaClient("http://t", "k").resolve_tmdb(
+        [(84958, "tv"), (85271, "tv"), (1, "tv"), (999, "tv"), (1726, "movie")])
+    assert out == {(84958, "tv"): "loki", (85271, "tv"): "wanda", (1726, "movie"): "im"}
+    import json
+    assert [i["media_type"] for i in json.loads(batch.calls[0].request.content)["items"]] == ["movie"]
+
+
+@respx.mock
+def test_no_series_requested_means_no_library_listing_call():
+    respx.post("http://t/api/v1/media/by-tmdb/batch").mock(return_value=httpx.Response(200, json={"results": []}))
+    listing = respx.get("http://t/api/v1/media").mock(return_value=httpx.Response(500))
+    TofaClient("http://t", "k").resolve_tmdb([(1726, "movie")])
+    assert listing.call_count == 0
