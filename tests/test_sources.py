@@ -11,6 +11,7 @@ def test_manual_parses_ids_types_comments():
     s = get_source("manual", {"text": "1726 # Iron Man\n\n1399 tv\nbad\n"}, st())
     got = s.fetch()
     assert [(i.tmdb_id, i.media_type) for i in got] == [(1726, "movie"), (1399, "tv")]
+    assert [i.title for i in got] == ["Iron Man", ""]
 
 @respx.mock
 def test_tmdb_collection_sorted_by_release_date():

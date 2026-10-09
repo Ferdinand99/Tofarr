@@ -35,6 +35,7 @@ def test_imdb_list_keeps_order_dedupes_and_maps_types_through_tmdb_find():
     got = get_source("imdb_list", {"list": "https://www.imdb.com/list/ls029032797/"}, st()).fetch()
     assert [(i.tmdb_id, i.media_type) for i in got] == [(84958, "tv"), (1726, "movie"), (76122, "movie")]
     assert route.call_count == 3                      # one lookup per unique title
+    assert [i.title for i in got] == ["Loki", "Iron Man", "One-Shot"]
 
 
 @respx.mock
@@ -81,3 +82,11 @@ def test_imdb_error_text_is_shown_and_cursor_variable_is_an_id():
     with pytest.raises(SourceError, match="bad variable"):
         get_source("imdb_list", {"list": "ls029032797"}, st()).fetch()
     assert "$after: ID" in json.loads(route.calls[0].request.content)["query"]
+
+
+@respx.mock
+def test_title_falls_back_to_tmdb_when_imdb_gives_none():
+    respx.post(GQL).mock(return_value=graphql([("tt9200001", "movie", "")]))
+    respx.get(url__regex=r".*/find/tt9200001").mock(return_value=httpx.Response(
+        200, json={"movie_results": [{"id": 7, "title": "From TMDB"}], "tv_results": []}))
+    assert [i.title for i in get_source("imdb_list", {"list": "ls1"}, st()).fetch()] == ["From TMDB"]
