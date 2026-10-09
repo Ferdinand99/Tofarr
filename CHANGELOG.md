@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/Ferdinand99/Tofarr/compare/v0.1.1...v0.2.0) (2026-10-09)
+
+
+### Features
+
+* add login with first-run setup ([e79d412](https://github.com/Ferdinand99/Tofarr/commit/e79d412a008cbf3c3caa1064782f53ceaa67ed8a))
+
 ## [0.1.1](https://github.com/Ferdinand99/Tofarr/compare/v0.1.0...v0.1.1) (2026-10-09)
 
 
