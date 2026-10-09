@@ -74,12 +74,42 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None) -
     def health():
         return {"ok": True}
 
+    def settings_page(request, status=200, message=None, error=None):
+        flags = {k: bool(getattr(settings, k)) for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id")}
+        return page(request, "settings.html", status, url=settings.tofa_url, is_set=flags,
+                    message=message, error=error)
+
+    @app.get("/settings")
+    def settings_form(request: Request):
+        return settings_page(request)
+
+    @app.post("/settings")
+    async def settings_save(request: Request):
+        f = {k: v.strip() for k, v in (await request.form()).items() if isinstance(v, str)}
+        url = f.get("tofa_url", "").rstrip("/")
+        if not url.startswith(("http://", "https://")):
+            return settings_page(request, 400, error="Tofa URL must start with http:// or https:// "
+                                                     "(example: http://192.168.1.10:33333)")
+        values = {"tofa_url": url}
+        for k in ("tofa_api_key", "tmdb_api_key", "trakt_client_id"):
+            if f.get(k):  # blank keeps the stored value
+                values[k] = f[k]
+        settings.save(**values)
+        try:
+            info = probe_factory().system_info()
+            return settings_page(request, message=f"Saved. Connected to Tofa {info.get('version', '')}".strip())
+        except TofaError as e:
+            return settings_page(request, error=f"Saved, but the connection test failed: {e}")
+
     @app.get("/")
     def index(request: Request):
-        try:
-            info, tofa_error = probe_factory().system_info(), None
-        except TofaError as e:
-            info, tofa_error = None, str(e)
+        if not settings.tofa_url:
+            info, tofa_error = None, "Tofa is not configured yet"
+        else:
+            try:
+                info, tofa_error = probe_factory().system_info(), None
+            except TofaError as e:
+                info, tofa_error = None, str(e)
         rows = [{"d": d, "run": db.last_run(d["id"])} for d in db.list_definitions()]
         return page(request, "index.html", rows=rows, info=info, tofa_error=tofa_error)
 

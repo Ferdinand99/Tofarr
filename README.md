@@ -9,11 +9,14 @@ Docker app that creates Tofa custom collections from external sources and keeps 
 
 A seeded **MCU Timeline** (manual list, disabled) is created on first start. Check the ids in the preview before enabling.
 
+## Configuration
+Open **Settings** in the web UI and enter the Tofa URL, admin API key and optional TMDB / Trakt keys. Saved values live in `/config` and override the environment variables below, which only act as defaults.
+
 ## Environment
 | Variable | Required | Notes |
 |---|---|---|
-| `TOFA_URL` | yes | Direct address, e.g. `http://192.168.1.10:33333`. Not the relay. |
-| `TOFA_API_KEY` | yes | Admin key from Tofa Server > Settings > API keys |
+| `TOFA_URL` | no (or set in UI) | Direct address, e.g. `http://192.168.1.10:33333`. Not the relay. |
+| `TOFA_API_KEY` | no (or set in UI) | Admin key from Tofa Server > Settings > API keys |
 | `TMDB_API_KEY` | for TMDB sources | Free at themoviedb.org/settings/api |
 | `TRAKT_CLIENT_ID` | for Trakt sources | trakt.tv/oauth/applications |
 | `TZ` | no | Default `Europe/Oslo` |

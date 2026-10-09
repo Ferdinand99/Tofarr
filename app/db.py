@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS definitions(
 CREATE TABLE IF NOT EXISTS runs(
   id INTEGER PRIMARY KEY AUTOINCREMENT, definition_id INTEGER NOT NULL, ts TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   status TEXT NOT NULL, message TEXT, added INTEGER, removed INTEGER, missing TEXT);
+CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 class Db:
@@ -57,6 +58,20 @@ class Db:
         with self._lock:
             self._c.execute("DELETE FROM runs WHERE definition_id=?", (id,))
             self._c.execute("DELETE FROM definitions WHERE id=?", (id,)); self._c.commit()
+
+    def get_setting(self, key):
+        with self._lock:
+            r = self._c.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return r["value"] if r else None
+
+    def set_setting(self, key, value):
+        with self._lock:
+            if value:
+                self._c.execute("INSERT INTO settings(key,value) VALUES(?,?) "
+                                "ON CONFLICT(key) DO UPDATE SET value=excluded.value", (key, value))
+            else:
+                self._c.execute("DELETE FROM settings WHERE key=?", (key,))
+            self._c.commit()
 
     def set_tofa_id(self, id, tofa_id):
         self.update_definition(id, tofa_id=tofa_id)

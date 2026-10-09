@@ -1,0 +1,18 @@
+{% extends "base.html" %}{% block body %}
+<h2>Settings</h2>
+{% if message %}<p style="color:var(--acc)">{{ message }}</p>{% endif %}
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form method="post">
+<label>Tofa server URL</label>
+<input name="tofa_url" value="{{ url }}" placeholder="http://192.168.1.10:33333" required>
+<p class="mut">Direct address of your Tofa server. API keys do not work through the relay.</p>
+<label>Tofa admin API key {% if is_set.tofa_api_key %}<span class="mut">(saved, leave blank to keep)</span>{% endif %}</label>
+<input type="password" name="tofa_api_key" autocomplete="off" placeholder="{{ 'saved' if is_set.tofa_api_key else 'Tofa Server > Settings > API keys' }}">
+<label>TMDB API key {% if is_set.tmdb_api_key %}<span class="mut">(saved, leave blank to keep)</span>{% endif %}</label>
+<input type="password" name="tmdb_api_key" autocomplete="off" placeholder="optional, needed for TMDB sources">
+<label>Trakt client ID {% if is_set.trakt_client_id %}<span class="mut">(saved, leave blank to keep)</span>{% endif %}</label>
+<input type="password" name="trakt_client_id" autocomplete="off" placeholder="optional, needed for Trakt lists">
+<p><button>Save and test connection</button> <a href="/">Back</a></p>
+</form>
+<p class="mut">Values saved here override the container environment variables. Keys are stored in /config and never shown again.</p>
+{% endblock %}

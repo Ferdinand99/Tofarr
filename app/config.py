@@ -11,7 +11,7 @@ class Settings:
     config_dir: Path
 
     @classmethod
-    def from_env(cls) -> "Settings":
+    def from_env(cls) -> "Settings":  # noqa: D401
         return cls(
             tofa_url=os.environ.get("TOFA_URL", "").rstrip("/"),
             tofa_api_key=os.environ.get("TOFA_API_KEY", ""),
@@ -19,3 +19,39 @@ class Settings:
             trakt_client_id=os.environ.get("TRAKT_CLIENT_ID") or None,
             config_dir=Path(os.environ.get("CONFIG_DIR", "/config")),
         )
+
+
+class LiveSettings:
+    """Settings saved in the web UI (stored in the DB) override the environment defaults."""
+    KEYS = ("tofa_url", "tofa_api_key", "tmdb_api_key", "trakt_client_id")
+
+    def __init__(self, env: Settings, db):
+        self._env, self._db = env, db
+
+    def _get(self, key: str):
+        return self._db.get_setting(key) or getattr(self._env, key) or None
+
+    @property
+    def tofa_url(self) -> str:
+        return (self._get("tofa_url") or "").rstrip("/")
+
+    @property
+    def tofa_api_key(self) -> str:
+        return self._get("tofa_api_key") or ""
+
+    @property
+    def tmdb_api_key(self):
+        return self._get("tmdb_api_key")
+
+    @property
+    def trakt_client_id(self):
+        return self._get("trakt_client_id")
+
+    @property
+    def config_dir(self):
+        return self._env.config_dir
+
+    def save(self, **values: str) -> None:
+        for k, v in values.items():
+            if k in self.KEYS:
+                self._db.set_setting(k, (v or "").strip())
