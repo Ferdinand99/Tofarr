@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% block body %}
+<h2>{{ 'Edit' if def_id else 'New' }} collection</h2>
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+<form method="post">
+<label>Name</label><input name="name" value="{{ v.name or '' }}" required>
+<label>Description</label><input name="overview" value="{{ v.overview or '' }}">
+<label>Source</label><select name="source_type" id="st" onchange="show()">
+{% for t in types %}<option value="{{ t }}" {{ 'selected' if v.source_type == t }}>{{ t }}</option>{% endfor %}</select>
+<div data-for="manual"><label>TMDB ids, one per line (optional <code>tv</code>, <code># comment</code>)</label>
+<textarea name="manual_text" rows="10">{{ v.manual_text or '' }}</textarea></div>
+<div data-for="tmdb_collection tmdb_list"><label>TMDB collection / list id</label><input name="tmdb_id" value="{{ v.tmdb_id or '' }}"></div>
+<div data-for="tmdb_discover"><label>Media type</label><select name="discover_media_type">
+<option value="movie" {{ 'selected' if v.discover_media_type == 'movie' }}>movie</option>
+<option value="tv" {{ 'selected' if v.discover_media_type == 'tv' }}>tv</option></select>
+<label>Discover params, key=value per line (e.g. with_people=1136406)</label>
+<textarea name="discover_params" rows="4">{{ v.discover_params or '' }}</textarea>
+<label>Max pages</label><input name="max_pages" value="{{ v.max_pages or 3 }}"></div>
+<div data-for="trakt_list"><label>Trakt user</label><input name="trakt_user" value="{{ v.trakt_user or '' }}">
+<label>Trakt list slug</label><input name="trakt_slug" value="{{ v.trakt_slug or '' }}"></div>
+<label>Update every (minutes, min 5)</label><input name="interval_minutes" value="{{ v.interval_minutes or 1440 }}">
+<label><input type="checkbox" name="prune" style="width:auto" {{ 'checked' if v.prune }}> Remove items no longer in source</label>
+<label><input type="checkbox" name="enabled" style="width:auto" {{ 'checked' if v.enabled }}> Enabled (scheduled)</label>
+<p><button>Save</button> <a href="/">Cancel</a></p></form>
+<script>function show(){var t=document.getElementById('st').value;document.querySelectorAll('[data-for]').forEach(function(e){e.style.display=e.dataset['for'].split(' ').indexOf(t)>-1?'':'none'})}show()</script>
+{% endblock %}

@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tofa Collection Creator</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#ddd;--acc:#0a7;--bad:#c33}
+@media(prefers-color-scheme:dark){:root{--bg:#10161a;--fg:#e8eef2;--mut:#98a4ac;--line:#2a343b;--acc:#2dd4a0;--bad:#ff6b6b}}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif;margin:0 auto;max-width:900px;padding:16px}
+a{color:var(--acc)}table{width:100%;border-collapse:collapse}td,th{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+input,select,textarea{background:var(--bg);color:var(--fg);border:1px solid var(--line);padding:6px;width:100%;box-sizing:border-box}
+label{display:block;margin:12px 0 4px}button{padding:6px 12px;cursor:pointer}.err{color:var(--bad)}.mut{color:var(--mut)}
+form.inline{display:inline}
+</style></head><body>
+<h1><a href="/" style="text-decoration:none">Tofa Collection Creator</a></h1>
+{% block body %}{% endblock %}
+</body></html>

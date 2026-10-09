@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block body %}
+{% if error %}<p class="err">{{ error }}</p>{% endif %}
+{% if d %}<h2>Preview: {{ d.name }}</h2>{% endif %}
+{% if r %}
+{% if r.status == 'failed' or r.status == 'aborted' %}<p class="err">{{ r.status }}: {{ r.message }}</p>
+{% else %}
+<p>Would add <b>{{ r.added }}</b>, remove <b>{{ r.removed }}</b>.</p>
+{% if r.missing %}<h3>Not in Tofa library ({{ r.missing|length }})</h3><ul>
+{% for m in r.missing %}<li>{{ m.tmdb_id }} — {{ m.title or '(no title)' }} <span class="mut">{{ m.media_type }}</span></li>{% endfor %}</ul>{% endif %}
+{% endif %}{% endif %}
+{% if d %}
+<form method="post" action="/{{ d.id }}/run"><button>Run now</button></form>
+<h3>Delete</h3>
+<form method="post" action="/{{ d.id }}/delete">
+<label><input type="checkbox" name="confirm" value="yes" style="width:auto"> Confirm delete</label>
+<label><input type="checkbox" name="delete_in_tofa" value="yes" style="width:auto"> Also delete collection in Tofa</label>
+<button>Delete</button></form>
+{% endif %}
+<p><a href="/">Back</a></p>
+{% endblock %}
