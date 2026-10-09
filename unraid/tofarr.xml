@@ -9,11 +9,13 @@
   <Privileged>false</Privileged>
   <Support>https://github.com/Ferdinand99/tofarr/issues</Support>
   <Project>https://github.com/Ferdinand99/tofarr</Project>
-  <Overview>Creates Tofa custom collections from TMDB collections/lists, TMDB discover rules (actor, genre, studio), Trakt lists or a manual list of TMDB ids, and keeps them in sync on a schedule. Includes a web UI with a dry-run preview before anything is written, and lists titles that are not in your Tofa library yet. Setup: open the web UI, go to Settings and enter your server URL and an admin API key (the TOFA_URL / TOFA_API_KEY variables below are optional defaults). Create the key in Tofa under Server &gt; Settings &gt; API keys and set TOFA_URL to the direct address of your server (not the relay). A free TMDB API key is needed for TMDB sources.</Overview>
+  <Overview>Tofarr is an unofficial companion app for the Tofa media server. It builds Tofa collections from TMDB, Trakt and IMDb lists, Tofa's own discovery shelves or a list of TMDB ids, keeps them in the order of the source, and updates them on a schedule. A Discover page shows posters with an In library badge, and with Seerr connected you can request titles you do not have. Nothing is written until you have seen a preview.
+
+Setup: open the web UI and create your login, then open Settings and enter your Tofa address (for example http://192.168.1.10:33333, not the relay) and an admin API key from Tofa under Server, Settings, API keys. A free TMDB API key is needed for TMDB and IMDb sources, a Trakt client ID for Trakt, and a Seerr address and key for requests. The variables below are optional defaults for the same settings.</Overview>
   <Category>MediaServer:Other Tools:</Category>
   <WebUI>http://[IP]:[PORT:8080]/</WebUI>
   <TemplateURL>https://raw.githubusercontent.com/Ferdinand99/unraid-templates/main/templates/tofarr.xml</TemplateURL>
-  <Icon/>
+  <Icon>https://raw.githubusercontent.com/Ferdinand99/Tofarr/main/unraid/tofarr-icon.png</Icon>
   <ExtraParams/>
   <PostArgs/>
   <DateInstalled/>
@@ -45,9 +47,9 @@
     Target="TOFA_URL"
     Default=""
     Mode=""
-    Description="Direct address of your Tofa server, e.g. http://192.168.1.10:33333 (API keys do not work through the relay)."
+    Description="Optional. Can also be set in the web UI. Direct address of your Tofa server, e.g. http://192.168.1.10:33333 (API keys do not work through the relay)."
     Type="Variable"
-    Display="always"
+    Display="advanced"
     Required="false"
     Mask="false"></Config>
   <Config
@@ -55,9 +57,9 @@
     Target="TOFA_API_KEY"
     Default=""
     Mode=""
-    Description="Admin API key from Tofa Server &gt; Settings &gt; API keys (shown once when created)."
+    Description="Optional. Can also be set in the web UI. Admin API key from Tofa Server &gt; Settings &gt; API keys (shown once when created)."
     Type="Variable"
-    Display="always"
+    Display="advanced"
     Required="false"
     Mask="true"></Config>
   <Config
@@ -67,7 +69,7 @@
     Mode=""
     Description="Free API key from themoviedb.org/settings/api. Needed for TMDB collection, list and discover sources."
     Type="Variable"
-    Display="always"
+    Display="advanced"
     Required="false"
     Mask="true"></Config>
   <Config
@@ -77,7 +79,7 @@
     Mode=""
     Description="Client ID of a Trakt app (trakt.tv/oauth/applications). Needed for Trakt list sources."
     Type="Variable"
-    Display="always"
+    Display="advanced"
     Required="false"
     Mask="true"></Config>
   <Config
@@ -87,7 +89,7 @@
     Mode=""
     Description="Optional. Address of your Seerr, e.g. http://192.168.1.10:5055. Lets you request titles you do not have."
     Type="Variable"
-    Display="always"
+    Display="advanced"
     Required="false"
     Mask="false"></Config>
   <Config
@@ -97,9 +99,19 @@
     Mode=""
     Description="Optional. Seerr API key (Seerr, Settings, General)."
     Type="Variable"
-    Display="always"
+    Display="advanced"
     Required="false"
     Mask="true"></Config>
+  <Config
+    Name="AUTH_RESET"
+    Target="AUTH_RESET"
+    Default=""
+    Mode=""
+    Description="Forgot the password? Set this to true for one start. It removes the login so you can create a new one. Clear it again afterwards."
+    Type="Variable"
+    Display="advanced"
+    Required="false"
+    Mask="false"></Config>
   <Config
     Name="Timezone"
     Target="TZ"
