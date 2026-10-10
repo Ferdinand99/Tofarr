@@ -22,6 +22,7 @@ Open **Settings** in the web UI and enter the Tofa URL, admin API key and option
 | `TMDB_API_KEY` | for TMDB sources | Free at themoviedb.org/settings/api |
 | `TRAKT_CLIENT_ID` | for Trakt sources | trakt.tv/oauth/applications |
 | `SEERR_URL` / `SEERR_API_KEY` | no (or set in UI) | Seerr, to request titles you do not have |
+| `PUID` / `PGID` | no | User and group the app runs as. Default `99` / `100` (Unraid nobody:users). `0` keeps root. |
 | `TZ` | no | Default `Europe/Oslo` |
 
 Port `8080`, volume `/config`.
@@ -41,6 +42,16 @@ Tofarr asks you to create a username and password the first time you open it. Af
 - **Forgot the password?** Start the container once with the variable `AUTH_RESET=true`. It removes the login, and the next visit shows the
   create-login page again. Remove the variable afterwards, or the login is removed on every start.
 - If you put Tofarr on the internet, use a reverse proxy with HTTPS. The session cookie is marked Secure when the proxy sends `X-Forwarded-Proto: https`.
+
+## Schedule
+- The schedule counts from the last run, so restarting the container does not postpone updates.
+- A collection that is overdue after a restart runs shortly after startup, one every 20 seconds so Tofa is not hit all at once.
+- A failed run is retried after at most 30 minutes, not after a whole interval.
+- The last 50 runs of each collection are kept.
+
+## Permissions
+The container starts as root only to hand `/config` to `PUID:PGID` (default `99:100`, Unraid's nobody:users) and then runs as that user.
+Set `PUID=0` to keep running as root.
 
 ## Behavior
 - Always preview first: dry run shows what would be added, removed and which titles are not in your library.

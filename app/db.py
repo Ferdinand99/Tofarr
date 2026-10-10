@@ -1,6 +1,8 @@
 import json, sqlite3, threading
 from pathlib import Path
 
+KEEP_RUNS = 50
+
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS definitions(
   id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, overview TEXT,
@@ -80,6 +82,10 @@ class Db:
         with self._lock:
             self._c.execute("INSERT INTO runs(definition_id,status,message,added,removed,missing) VALUES(?,?,?,?,?,?)",
                             (definition_id, status, message, added, removed, json.dumps(missing)))
+            # keep the latest runs of this collection only, so history cannot grow forever
+            self._c.execute("DELETE FROM runs WHERE definition_id=? AND id NOT IN "
+                            "(SELECT id FROM runs WHERE definition_id=? ORDER BY id DESC LIMIT ?)",
+                            (definition_id, definition_id, KEEP_RUNS))
             self._c.commit()
 
     def last_run(self, definition_id):

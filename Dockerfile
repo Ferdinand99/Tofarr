@@ -9,4 +9,5 @@ ENV APP_VERSION=$VERSION
 VOLUME /config
 EXPOSE 8080
 HEALTHCHECK --interval=60s --timeout=5s CMD python -c "import urllib.request as u; u.urlopen('http://127.0.0.1:8080/health')"
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Starts as root only to give /config to PUID:PGID (99:100 on Unraid), then continues as that user.
+CMD ["python", "-m", "app.entrypoint"]
