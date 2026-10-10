@@ -48,4 +48,18 @@
   </form>
 </div>
 {% endif %}
+<div class="panel">
+  <h2>Backup</h2>
+  <form method="get" action="/backup/export">
+    <div class="field"><label>Export</label><div class="check"><input type="checkbox" name="keys" value="1" id="bk">
+      <label for="bk" style="font-weight:400;padding:0">Include API keys</label></div>
+      <div class="hint">Saves your collections and the Tofa and Seerr addresses in one file. The login is never included. With keys, keep the file private.</div></div>
+    <div class="foot"><button>Download backup</button></div>
+  </form>
+  <form method="post" action="/backup/import" enctype="multipart/form-data" style="border-top:1px solid var(--line)">
+    <div class="field"><label for="bf">Import</label><input id="bf" type="file" name="file" accept=".json,application/json" required>
+      <div class="hint">Adds the collections from a backup. Collections with the same name and settings you already have are kept.</div></div>
+    <div class="foot"><button class="primary">Import backup</button></div>
+  </form>
+</div>
 {% endblock %}

@@ -1,10 +1,13 @@
+import json
 import os
 import re
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote, urlsplit
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from app.backup import BackupError, export_data, import_data
 from app.auth import COOKIE, SESSION_SECONDS, AuthStore, LoginLimiter, is_local_request
 from app.discover.service import CATALOG, DISCOVERABLE, TITLES, cfg_for, load_shelf
 from app.seerr import SeerrClient, SeerrError
@@ -13,6 +16,7 @@ from app.sources.tmdb import search_collections
 from app.sources.trakt import trending_lists
 from app.sources.base import SourceError
 from app.sync import run_definition
+from app.wanted import collect_wanted
 from app.tofa.client import TofaError
 
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
@@ -261,6 +265,73 @@ def create_app(settings, db, tofa_factory, scheduler=None, probe_factory=None, s
         # the new secret ends every other session; keep this browser signed in
         return start_session(settings_page(request, message="Password changed. Other devices must sign in again."),
                              request, user)
+
+    # ---------- Wanted ----------
+
+    def wanted_page(request, status=200, error=None, report=None, summary=None):
+        items = collect_wanted(db)
+        return page(request, "wanted.html", status, items=items, seerr_on=seerr_on(),
+                    seerr_status=seerr_status(items), error=error, report=report, report_summary=summary)
+
+    @app.get("/wanted")
+    def wanted(request: Request):
+        return wanted_page(request)
+
+    @app.post("/wanted/request-all")
+    async def wanted_request_all(request: Request):
+        f = dict((await request.form()).items())
+        if not seerr_on():
+            return wanted_page(request, 400, "Seerr is not configured")
+        if f.get("confirm") != "yes":
+            return wanted_page(request, 400, "Tick the confirmation to request these titles")
+        items, limit, report = collect_wanted(db), 100, []
+        seerr = get_seerr()
+        for w in items[:limit]:
+            try:
+                outcome = seerr.request(w.tmdb_id, w.media_type)
+                report.append((w, "Already requested" if outcome == "exists" else "Requested", True))
+            except SeerrError as e:
+                report.append((w, str(e), False))
+                if e.fatal:
+                    break
+        done = sum(1 for _, _, ok in report if ok)
+        summary = f"Requested {done} of {len(items)} wanted titles"
+        if len(items) > limit:
+            summary += f" (at most {limit} per click, click again for the rest)"
+        return wanted_page(request, report=report, summary=summary)
+
+    # ---------- Backup ----------
+
+    BACKUP_LIMIT = 1_000_000
+
+    @app.get("/backup/export")
+    def backup_export(keys: int = 0):
+        body = json.dumps(export_data(db, include_keys=bool(keys)), indent=2, ensure_ascii=False)
+        name = f"tofarr-backup-{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.json"
+        return Response(body, media_type="application/json",
+                        headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
+    @app.post("/backup/import")
+    async def backup_import(request: Request):
+        upload = (await request.form()).get("file")
+        if upload is None or not hasattr(upload, "read"):
+            return settings_page(request, 400, error="Choose a backup file first.")
+        raw = await upload.read(BACKUP_LIMIT + 1)
+        if len(raw) > BACKUP_LIMIT:
+            return settings_page(request, 400, error="The file is too large to be a Tofarr backup.")
+        try:
+            report = import_data(db, json.loads(raw.decode("utf-8")))
+        except (ValueError, UnicodeDecodeError):
+            return settings_page(request, 400, error="The file is not a valid backup (it is not JSON).")
+        except BackupError as e:
+            return settings_page(request, 400, error=str(e))
+        if scheduler:
+            for d in db.list_definitions():
+                scheduler.reschedule(d["id"])
+        text = f"Added {report.added} collections, skipped {report.skipped} that already exist, applied {report.settings} settings."
+        if report.errors:
+            return settings_page(request, error=text + " Not imported: " + "; ".join(report.errors))
+        return settings_page(request, message=text + " Imported collections that are not in Tofa yet are off until you preview them.")
 
     @app.get("/")
     def index(request: Request):

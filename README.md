@@ -43,6 +43,16 @@ Tofarr asks you to create a username and password the first time you open it. Af
   create-login page again. Remove the variable afterwards, or the login is removed on every start.
 - If you put Tofarr on the internet, use a reverse proxy with HTTPS. The session cookie is marked Secure when the proxy sends `X-Forwarded-Proto: https`.
 
+## Wanted
+The **Wanted** page lists every title that your collections could not find in the Tofa library, from the last run of each collection.
+A title wanted by several collections is listed once, with the collections that want it. With Seerr connected each title has a Request
+button, and **Request all** asks Seerr for up to 100 titles after you confirm. Titles leave the list by themselves when they reach the library.
+
+## Backup
+Under **Settings, Backup** you can download your collections and the Tofa and Seerr addresses as one JSON file, and import it into another
+installation. API keys are only included if you tick the box, and the login is never included. An import adds collections and fills empty settings.
+It never overwrites a collection with the same name or a setting you already have, and a collection that does not exist in Tofa yet comes back switched off.
+
 ## Schedule
 - The schedule counts from the last run, so restarting the container does not postpone updates.
 - A collection that is overdue after a restart runs shortly after startup, one every 20 seconds so Tofa is not hit all at once.

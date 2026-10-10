@@ -124,6 +124,7 @@ textarea{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}
   <nav class="nav">
     <a href="/" class="{{ 'on' if request.url.path in ('/',) or request.url.path.endswith(('/preview','/edit')) }}">Collections</a>
     <a href="/discover" class="{{ 'on' if request.url.path.startswith('/discover') }}">Discover</a>
+    <a href="/wanted" class="{{ 'on' if request.url.path.startswith('/wanted') }}">Wanted</a>
     <a href="/new" class="{{ 'on' if request.url.path == '/new' }}">Add new</a>
     <a href="/settings" class="{{ 'on' if request.url.path == '/settings' }}">Settings</a>
   </nav>
