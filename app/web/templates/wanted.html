@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Wanted{% endblock %}
+{% block heading %}Wanted{% endblock %}
+{% block body %}
+{% if report_summary %}
+<div class="notice {{ 'ok' if report and report|selectattr(2)|list|length == report|length else 'warn' }}">{{ report_summary }}</div>
+<div class="panel"><h3>Seerr results</h3><ul class="list">
+{% for w, text, ok in report %}<li><span>{{ w.title or w.tmdb_id }}</span><span class="pill">{{ 'series' if w.media_type == 'tv' else 'movie' }}</span><span class="req {{ '' if ok else 'err' }}">{{ text }}</span></li>{% endfor %}
+</ul></div>
+{% endif %}
+{% if error %}<div class="notice bad">{{ error }}</div>{% endif %}
+{% if not items %}
+<div class="panel"><div class="empty">Nothing is missing. Every title in your collections is in your Tofa library.</div></div>
+{% else %}
+<p class="mut">{{ items|length }} titles that your collections could not find in your Tofa library, from the last run of each collection.
+  They are added to the collections by themselves once they are in the library.</p>
+{% if not seerr_on %}<div class="notice warn">Connect Seerr to request them from here. <a href="/settings">Open settings</a></div>{% endif %}
+<div class="panel">
+<table>
+<thead><tr><th>Title</th><th>Wanted by</th>{% if seerr_on %}<th></th>{% endif %}</tr></thead>
+<tbody>
+{% for w in items %}{% set label = (seerr_status or {}).get(w.tmdb_id ~ '-' ~ w.media_type) %}
+<tr>
+  <td><a href="https://www.themoviedb.org/{{ 'tv' if w.media_type == 'tv' else 'movie' }}/{{ w.tmdb_id }}" target="_blank" rel="noopener">{{ w.title or w.tmdb_id }}</a>
+      <span class="pill">{{ 'series' if w.media_type == 'tv' else 'movie' }}</span></td>
+  <td class="mut">{{ w.collections|join(', ') }}</td>
+  {% if seerr_on %}<td class="act">{% if label %}<span class="pill on">{{ label }}</span>{% else %}<button class="sm" data-request data-id="{{ w.tmdb_id }}" data-type="{{ w.media_type }}">Request</button>{% endif %}</td>{% endif %}
+</tr>
+{% endfor %}
+</tbody></table>
+</div>
+{% if seerr_on %}
+<div class="panel"><h3>Request on Seerr</h3>
+  <form method="post" action="/wanted/request-all">
+    <div class="field"><label>Confirm</label><div class="check"><input type="checkbox" name="confirm" value="yes" id="rq"><label for="rq" style="font-weight:400;padding:0">Yes, ask Seerr for these {{ items|length }} titles (at most 100 per click)</label></div></div>
+    <div class="foot"><button class="primary">Request all {{ items|length }}</button></div>
+  </form></div>
+{% endif %}
+{% endif %}
+{% endblock %}
