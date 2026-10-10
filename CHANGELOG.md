@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0](https://github.com/Ferdinand99/Tofarr/compare/v0.2.0...v0.3.0) (2026-10-10)
+
+
+### Features
+
+* add a Wanted page and backup export and import ([#9](https://github.com/Ferdinand99/Tofarr/issues/9)) ([e2298ac](https://github.com/Ferdinand99/Tofarr/commit/e2298acfcf863ec708507d4807658ff0ce2fd053))
+* keep the schedule across restarts and run as PUID:PGID ([#7](https://github.com/Ferdinand99/Tofarr/issues/7)) ([28f8a2c](https://github.com/Ferdinand99/Tofarr/commit/28f8a2c458a92d4387c7f296e3a52a6e1b214cce))
+
 ## [0.2.0](https://github.com/Ferdinand99/Tofarr/compare/v0.1.1...v0.2.0) (2026-10-09)
 
 
