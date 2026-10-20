@@ -1,6 +1,32 @@
-# Tofarr
+# Tofarr (archived)
 
-> An unofficial companion app for [Tofa](https://tofa.tv). Not made by or affiliated with Tofa.
+> **This project is archived and no longer maintained.** Tofa has added **Universes**, which does most of what Tofarr was made for.
+> Tofarr is an unofficial companion app for [Tofa](https://tofa.tv) and is not made by or affiliated with Tofa.
+
+## Use Universes instead
+
+Tofarr was built to make collections like a Marvel Cinematic Universe timeline, with films and series together in story order.
+Since Tofa server **0.12.0**, Tofa does that itself with [Universes](https://docs.tofa.tv/universes.html).
+
+- Tofa keeps the titles, the story order and the chapters of each universe up to date in its own metadata service. Your server picks up changes within about 10 minutes.
+- A universe page shows which titles are in your library, what you have watched and what is up next, and it has a **Request missing** button.
+- A series can appear once per season where the seasons sit at different points in the story, which Tofarr could not do.
+- Find them under **Discover**, **Universes**, or under **Browse**, **Collections**. **Continue the saga** on Home takes you to the next title.
+
+| You used Tofarr for | Now |
+|---|---|
+| A franchise in story order (MCU and similar) | Use the universe in Tofa |
+| Seeing and requesting what is missing | **Request missing** on the universe page |
+| Collections from your own TMDB, Trakt or IMDb lists | Not covered by Universes. Tofarr 0.3.0 still does this, but it is no longer maintained |
+| Discover shelves with posters from Trakt, TMDB and IMDb | Not covered. Use Discover in Tofa |
+
+If you move to Universes, you can delete the collections that Tofarr made in Tofa, so the same franchise does not appear twice.
+Removing a collection in Tofa does not remove any media.
+
+## About this project
+
+The last release is [v0.3.0](https://github.com/Ferdinand99/Tofarr/releases/tag/v0.3.0). The code and the Docker image stay available as they are, with no more updates and no support.
+Nothing below changes. It describes how Tofarr 0.3.0 works, for anyone who keeps using it.
 
 Docker app that creates Tofa custom collections from external sources and keeps them up to date.
 
